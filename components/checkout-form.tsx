@@ -178,8 +178,8 @@ export function CheckoutForm({
           <ul className="mt-5 space-y-4">
             {items.map((item) => (
               <li key={item.slug} className="flex gap-3">
-                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-ink">
-                  <Image src={item.image} alt={item.name} fill sizes="56px" className="object-cover" />
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gradient-to-b from-white to-zinc-100">
+                  <Image src={item.image} alt={item.name} fill sizes="56px" className="object-contain p-1" />
                 </div>
                 <div className="flex flex-1 items-center justify-between gap-2">
                   <div>

@@ -40,14 +40,13 @@ export function ProductCard({ product }: { product: ProductCardData }) {
       href={`/store/${product.slug}`}
       className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-gradient-to-b from-navy-700/70 to-ink-800/70 transition-all duration-500 hover:-translate-y-1 hover:border-gold/40 hover:shadow-[0_20px_60px_-20px_rgba(232,200,121,0.25)]"
     >
-      <div className="relative aspect-square overflow-hidden bg-ink">
-        <div className="absolute inset-0 z-10 bg-gradient-to-t from-ink/60 via-transparent to-transparent" />
+      <div className="relative aspect-square overflow-hidden bg-gradient-to-b from-white to-zinc-100">
         <Image
           src={product.image}
           alt={product.name}
           fill
           sizes="(max-width: 768px) 50vw, 320px"
-          className="object-cover transition-transform duration-700 group-hover:scale-105"
+          className="object-contain p-4 transition-transform duration-700 group-hover:scale-105"
         />
         <span className="absolute left-3 top-3 z-20 rounded-full border border-gold/30 bg-ink/70 px-2.5 py-1 text-[10px] uppercase tracking-[0.1em] text-gold backdrop-blur">
           {product.category}

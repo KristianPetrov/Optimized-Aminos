@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   ArrowRight,
   FlaskConical,
@@ -44,6 +45,25 @@ export default async function Home() {
 
         <div className="mx-auto max-w-7xl px-4 pb-20 pt-20 sm:px-6 sm:pt-28 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
+            <div className="animate-fade-in relative mx-auto mb-10 w-full max-w-2xl">
+              <div
+                aria-hidden
+                className="absolute left-1/2 top-1/2 -z-10 h-[70%] w-[85%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold/25 blur-[90px] animate-glow"
+              />
+              <div
+                aria-hidden
+                className="absolute left-1/2 top-1/2 -z-10 h-[40%] w-[40%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold/30 blur-[60px]"
+              />
+              <Image
+                src="/new-logo-lined.png"
+                alt="Optimized Aminos"
+                width={1489}
+                height={383}
+                priority
+                className="h-auto w-full animate-float drop-shadow-[0_0_50px_rgba(232,200,121,0.35)]"
+              />
+            </div>
+
             <div className="animate-fade-in inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/5 px-4 py-1.5 text-xs uppercase tracking-[0.2em] text-gold">
               <Atom size={14} /> Research-Grade Peptide Science
             </div>

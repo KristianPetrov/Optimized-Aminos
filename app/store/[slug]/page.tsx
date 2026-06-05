@@ -48,15 +48,14 @@ export default async function ProductPage(props: PageProps<"/store/[slug]">) {
 
       <div className="mt-8 grid gap-10 lg:grid-cols-2">
         {/* Image */}
-        <div className="relative aspect-square overflow-hidden rounded-3xl border border-line bg-ink">
-          <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-ink/40 via-transparent to-transparent" />
+        <div className="relative aspect-square overflow-hidden rounded-3xl border border-line bg-gradient-to-b from-white to-zinc-100">
           <Image
             src={product.image}
             alt={product.name}
             fill
             priority
             sizes="(max-width: 1024px) 100vw, 600px"
-            className="object-cover"
+            className="object-contain p-6"
           />
           <span className="absolute left-4 top-4 z-20 rounded-full border border-gold/30 bg-ink/70 px-3 py-1 text-[11px] uppercase tracking-[0.1em] text-gold backdrop-blur">
             {product.category}

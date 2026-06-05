@@ -67,13 +67,13 @@ export function CartDrawer() {
                     key={item.slug}
                     className="flex gap-3 rounded-xl border border-line bg-ink/40 p-3"
                   >
-                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-ink">
+                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-gradient-to-b from-white to-zinc-100">
                       <Image
                         src={item.image}
                         alt={item.name}
                         fill
                         sizes="80px"
-                        className="object-cover"
+                        className="object-contain p-1"
                       />
                     </div>
                     <div className="flex flex-1 flex-col">

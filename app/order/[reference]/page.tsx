@@ -109,8 +109,8 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
         <ul className="mt-5 space-y-4">
           {order.items.map((item) => (
             <li key={item.id} className="flex items-center gap-4">
-              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-ink">
-                <Image src={item.image} alt={item.name} fill sizes="56px" className="object-cover" />
+              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gradient-to-b from-white to-zinc-100">
+                <Image src={item.image} alt={item.name} fill sizes="56px" className="object-contain p-1" />
               </div>
               <div className="flex-1">
                 <p className="text-sm text-foam">{item.name}</p>

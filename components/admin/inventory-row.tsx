@@ -32,13 +32,13 @@ export function InventoryRow({ product }: { product: Product }) {
       <input type="hidden" name="productId" value={product.id} />
 
       <div className="col-span-2 flex items-center gap-3 md:col-span-1">
-        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-ink">
+        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-gradient-to-b from-white to-zinc-100">
           <Image
             src={product.image}
             alt={product.name}
             fill
             sizes="48px"
-            className="object-cover"
+            className="object-contain p-0.5"
           />
         </div>
         <div className="min-w-0">
