@@ -1,36 +1,115 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Optimized Aminos
+
+A clean, futuristic storefront for a research-peptide company, built with **Next.js 16 (App Router)**, **Tailwind v4**, **Drizzle ORM + Neon Postgres**, **NextAuth (Auth.js v5)**, and **Resend**.
+
+Theme: dark blue/black with gold accents, subtle scroll animations, and strict **Research Use Only (RUO)** compliance throughout.
+
+## Features
+
+- **Futuristic front page** with a strong mission statement and RUO compliance messaging.
+- **Store** with category-grouped catalog, product detail pages, a slide-out cart, and checkout.
+- **Manual payments** via **Zelle** and **Venmo** — orders are created as `pending_payment` and the customer receives instructions + an order reference.
+- **Authentication** with NextAuth (credentials), registration, login, and route protection via `proxy.ts`.
+- **Account area** where customers view their order history and status.
+- **Admin dashboard** (`/admin`) with two tabs:
+  - **Orders** — view every order, mark as **Paid**, add a **carrier + tracking number** and mark **Shipped**, or **Cancel** (which restocks inventory). Every status change sends a confirmation email.
+  - **Inventory** — set price, stock level, active, and featured flags per product.
+- **Transactional emails** (Resend): order received, payment confirmed, shipped (with tracking), cancelled, plus an admin new-order notification.
+- **Legal/compliance pages**: Research Use Only policy, Terms of Sale, Privacy Policy.
+
+## Tech Stack
+
+| Concern        | Choice                                  |
+| -------------- | --------------------------------------- |
+| Framework      | Next.js 16 (App Router, Turbopack)      |
+| Styling        | Tailwind CSS v4                         |
+| Database       | Neon (serverless Postgres)              |
+| ORM            | Drizzle ORM + drizzle-kit               |
+| Auth           | NextAuth / Auth.js v5 (credentials)     |
+| Email          | Resend                                  |
+| Icons          | lucide-react                            |
+| Validation     | Zod                                     |
 
 ## Getting Started
 
-First, run the development server:
+### 1. Install dependencies
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Configure environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy the example file and fill in your values:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env.local
+```
 
-## Learn More
+Required variables (see `.env.example` for the full list):
 
-To learn more about Next.js, take a look at the following resources:
+- `DATABASE_URL` — Neon pooled connection string.
+- `AUTH_SECRET` — generate with `openssl rand -base64 32`.
+- `RESEND_API_KEY`, `EMAIL_FROM`, `ADMIN_NOTIFICATION_EMAIL` — for emails.
+- `NEXT_PUBLIC_ZELLE_RECIPIENT`, `NEXT_PUBLIC_VENMO_HANDLE` — shown at checkout.
+- `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` — the initial admin account.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 3. Create the database schema
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Push the schema to your Neon database (or run the generated migration):
 
-## Deploy on Vercel
+```bash
+pnpm db:push        # apply schema directly
+# or
+pnpm db:migrate     # run the SQL migration in db/migrations
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 4. Seed the catalog + admin user
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+pnpm db:seed
+```
+
+This upserts all products (using the images in `public/products`) and creates the admin user from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
+
+### 5. Run the app
+
+```bash
+pnpm dev
+```
+
+Visit `http://localhost:3000`. Sign in with your seeded admin credentials and open `/admin`.
+
+## Project Structure
+
+```
+app/
+  page.tsx                 # Front page (mission, values, featured, compliance CTA)
+  store/                   # Catalog + product detail
+  checkout/                # Checkout (Zelle/Venmo)
+  order/[reference]/       # Order confirmation + payment instructions
+  account/                 # Customer order history
+  admin/                   # Admin dashboard (orders + inventory)
+  login/ register/         # Auth pages
+  compliance/ terms/ privacy/ science/
+  api/auth/[...nextauth]/  # NextAuth route handler
+auth.ts, auth.config.ts    # NextAuth setup (split for edge-safe proxy)
+proxy.ts                   # Route protection (Next.js 16 "proxy", formerly middleware)
+db/                        # Drizzle schema, client, migrations, seed
+lib/                       # Server actions, data access, email, formatting
+components/                # UI + client components
+```
+
+## Order Lifecycle
+
+1. Customer checks out → order created as **`pending_payment`**, confirmation email with Zelle/Venmo instructions + reference.
+2. Customer sends payment with the reference in the note.
+3. Admin confirms payment → marks **Paid** → "payment confirmed" email.
+4. Admin adds carrier + tracking → marks **Shipped** → "shipped" email with tracking.
+5. (Optional) Admin **Cancels** → inventory restocked → "cancelled" email.
+
+## Notes
+
+- All products are presented strictly **For Research Use Only**. Compliance language appears in the top bar, footer, product pages, checkout, and emails.
+- Prices are stored in cents; inventory decrements on order and restocks on cancellation.
+- Payments are handled manually (no payment processor integration), per the requirements.

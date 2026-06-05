@@ -1,0 +1,169 @@
+"use server";
+
+import { z } from "zod";
+import { inArray, sql } from "drizzle-orm";
+import { db } from "@/db";
+import { products, orders, orderItems } from "@/db/schema";
+import { auth } from "@/auth";
+import { generateOrderReference } from "@/lib/format";
+import { sendOrderConfirmation, sendAdminNewOrder } from "@/lib/email";
+
+const shippingSchema = z.object({
+  fullName: z.string().min(2, "Full name is required."),
+  email: z.string().email("A valid email is required."),
+  phone: z.string().optional(),
+  address1: z.string().min(3, "Street address is required."),
+  address2: z.string().optional(),
+  city: z.string().min(2, "City is required."),
+  state: z.string().min(2, "State / region is required."),
+  postalCode: z.string().min(3, "Postal code is required."),
+  country: z.string().min(2, "Country is required."),
+});
+
+const placeOrderSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        slug: z.string(),
+        quantity: z.number().int().min(1).max(99),
+      }),
+    )
+    .min(1, "Your cart is empty."),
+  shipping: shippingSchema,
+  paymentMethod: z.enum(["zelle", "venmo"]),
+  acceptedTerms: z.boolean(),
+});
+
+export type PlaceOrderInput = z.input<typeof placeOrderSchema>;
+
+export type PlaceOrderResult =
+  | { ok: true; reference: string }
+  | { ok: false; error: string };
+
+export async function placeOrder(
+  input: PlaceOrderInput,
+): Promise<PlaceOrderResult> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { ok: false, error: "Please sign in to complete your order." };
+  }
+
+  const parsed = placeOrderSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid order details.",
+    };
+  }
+
+  const { items, shipping, paymentMethod, acceptedTerms } = parsed.data;
+
+  if (!acceptedTerms) {
+    return {
+      ok: false,
+      error: "You must confirm the research-use-only terms.",
+    };
+  }
+
+  const slugs = items.map((i) => i.slug);
+
+  // Re-fetch products server-side; never trust client-supplied prices.
+  const dbProducts = await db
+    .select()
+    .from(products)
+    .where(inArray(products.slug, slugs));
+
+  const bySlug = new Map(dbProducts.map((p) => [p.slug, p]));
+
+  let subtotalCents = 0;
+  const lineItems: {
+    productId: string;
+    name: string;
+    slug: string;
+    image: string;
+    unitPriceCents: number;
+    quantity: number;
+  }[] = [];
+
+  for (const item of items) {
+    const product = bySlug.get(item.slug);
+    if (!product || !product.active) {
+      return { ok: false, error: `An item in your cart is no longer available.` };
+    }
+    if (product.inventory < item.quantity) {
+      return {
+        ok: false,
+        error: `Only ${product.inventory} of ${product.name} remain in stock.`,
+      };
+    }
+    subtotalCents += product.priceCents * item.quantity;
+    lineItems.push({
+      productId: product.id,
+      name: product.name,
+      slug: product.slug,
+      image: product.image,
+      unitPriceCents: product.priceCents,
+      quantity: item.quantity,
+    });
+  }
+
+  const shippingCents = 0; // Free research-grade shipping
+  const totalCents = subtotalCents + shippingCents;
+  const reference = generateOrderReference();
+
+  const [order] = await db
+    .insert(orders)
+    .values({
+      reference,
+      userId: session.user.id,
+      email: shipping.email.toLowerCase(),
+      status: "pending_payment",
+      paymentMethod,
+      subtotalCents,
+      shippingCents,
+      totalCents,
+      shippingAddress: shipping,
+    })
+    .returning();
+
+  await db.insert(orderItems).values(
+    lineItems.map((li) => ({
+      orderId: order.id,
+      productId: li.productId,
+      name: li.name,
+      slug: li.slug,
+      image: li.image,
+      unitPriceCents: li.unitPriceCents,
+      quantity: li.quantity,
+    })),
+  );
+
+  // Decrement inventory.
+  for (const li of lineItems) {
+    await db
+      .update(products)
+      .set({ inventory: sql`${products.inventory} - ${li.quantity}` })
+      .where(inArray(products.id, [li.productId]));
+  }
+
+  const orderWithItems = {
+    ...order,
+    items: lineItems.map((li, idx) => ({
+      id: `${order.id}-${idx}`,
+      orderId: order.id,
+      productId: li.productId,
+      name: li.name,
+      slug: li.slug,
+      image: li.image,
+      unitPriceCents: li.unitPriceCents,
+      quantity: li.quantity,
+    })),
+  };
+
+  await Promise.allSettled([
+    sendOrderConfirmation(orderWithItems),
+    sendAdminNewOrder(orderWithItems),
+  ]);
+
+  return { ok: true, reference };
+}
