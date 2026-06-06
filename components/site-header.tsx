@@ -20,7 +20,7 @@ const navLinks = [
 ];
 
 export function SiteHeader({ user }: { user: HeaderUser }) {
-  const { count, setOpen } = useCart();
+  const { count, setOpen, hydrated } = useCart();
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
@@ -103,7 +103,7 @@ export function SiteHeader({ user }: { user: HeaderUser }) {
               className="relative flex h-9 w-9 items-center justify-center rounded-full border border-line text-mist transition-colors hover:border-gold/40 hover:text-gold"
             >
               <ShoppingCart size={18} />
-              {count > 0 && (
+              {hydrated && count > 0 && (
                 <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-bold text-ink">
                   {count}
                 </span>

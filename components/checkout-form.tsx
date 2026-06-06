@@ -60,7 +60,9 @@ export function CheckoutForm({
       const result = await placeOrder(payload);
       if (result.ok) {
         clear();
-        router.push(`/order/${result.reference}`);
+        router.push(
+          `/order/${result.reference}?email=${encodeURIComponent(result.email)}`,
+        );
       } else {
         setError(result.error);
       }

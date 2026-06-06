@@ -47,6 +47,11 @@ export function SiteFooter() {
                   My Orders
                 </Link>
               </li>
+              <li>
+                <Link href="/track" className="hover:text-gold">
+                  Track an Order
+                </Link>
+              </li>
             </ul>
           </div>
 

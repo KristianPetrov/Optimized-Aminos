@@ -2,10 +2,12 @@
 
 import { z } from "zod";
 import { inArray, sql } from "drizzle-orm";
+import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { products, orders, orderItems } from "@/db/schema";
 import { auth } from "@/auth";
 import { generateOrderReference } from "@/lib/format";
+import { getOrderByReference } from "@/lib/data";
 import { sendOrderConfirmation, sendAdminNewOrder } from "@/lib/email";
 
 const shippingSchema = z.object({
@@ -37,16 +39,16 @@ const placeOrderSchema = z.object({
 export type PlaceOrderInput = z.input<typeof placeOrderSchema>;
 
 export type PlaceOrderResult =
-  | { ok: true; reference: string }
+  | { ok: true; reference: string; email: string }
   | { ok: false; error: string };
 
 export async function placeOrder(
   input: PlaceOrderInput,
 ): Promise<PlaceOrderResult> {
+  // Guest checkout is allowed: attach the user id when signed in, otherwise
+  // the order is tracked by its reference + email.
   const session = await auth();
-  if (!session?.user?.id) {
-    return { ok: false, error: "Please sign in to complete your order." };
-  }
+  const userId = session?.user?.id ?? null;
 
   const parsed = placeOrderSchema.safeParse(input);
   if (!parsed.success) {
@@ -115,7 +117,7 @@ export async function placeOrder(
     .insert(orders)
     .values({
       reference,
-      userId: session.user.id,
+      userId,
       email: shipping.email.toLowerCase(),
       status: "pending_payment",
       paymentMethod,
@@ -165,5 +167,30 @@ export async function placeOrder(
     sendAdminNewOrder(orderWithItems),
   ]);
 
-  return { ok: true, reference };
+  return { ok: true, reference, email: order.email };
+}
+
+export type LookupState = { error?: string } | null;
+
+export async function lookupOrder(
+  _prev: LookupState,
+  formData: FormData,
+): Promise<LookupState> {
+  const reference = String(formData.get("reference") ?? "")
+    .trim()
+    .toUpperCase();
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
+
+  if (!reference || !email) {
+    return { error: "Enter both your order number and email." };
+  }
+
+  const order = await getOrderByReference(reference);
+  if (!order || order.email.toLowerCase() !== email) {
+    return { error: "No order found with that order number and email." };
+  }
+
+  redirect(`/order/${order.reference}?email=${encodeURIComponent(email)}`);
 }

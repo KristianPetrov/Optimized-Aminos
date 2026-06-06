@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { CheckCircle2, Copy, Truck, ArrowUpRight } from "lucide-react";
 import { auth } from "@/auth";
 import { getOrderByReference } from "@/lib/data";
@@ -15,6 +15,7 @@ export const metadata: Metadata = { title: "Order Details" };
 
 export default async function OrderPage(props: PageProps<"/order/[reference]">) {
   const { reference } = await props.params;
+  const { email: emailParam } = await props.searchParams;
   const session = await auth();
 
   let order;
@@ -24,12 +25,21 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
     order = null;
   }
 
-  if (!order) notFound();
+  if (!order) redirect(`/track?reference=${encodeURIComponent(reference)}`);
 
-  // Only the owner or an admin may view an order.
+  // Access is granted to: the owner, an admin, or anyone who can supply the
+  // matching email (guest orders are verified by reference + email).
   const isOwner = session?.user?.id && order.userId === session.user.id;
   const isAdmin = session?.user?.role === "admin";
-  if (!isOwner && !isAdmin) notFound();
+  const providedEmail =
+    typeof emailParam === "string" ? emailParam.toLowerCase() : null;
+  const emailMatches = providedEmail === order.email.toLowerCase();
+
+  if (!isOwner && !isAdmin && !emailMatches) {
+    redirect(`/track?reference=${encodeURIComponent(reference)}`);
+  }
+
+  const isGuestView = !isOwner && !isAdmin;
 
   const zelle =
     process.env.NEXT_PUBLIC_ZELLE_RECIPIENT || "payments@optimizedaminos.com";
@@ -148,12 +158,24 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
       </div>
 
       <div className="mt-8 text-center">
-        <Link
-          href="/account"
-          className="inline-block rounded-full border border-line px-6 py-2.5 text-sm text-mist transition-colors hover:text-foam"
-        >
-          View all my orders
-        </Link>
+        {isGuestView ? (
+          <p className="text-sm text-mist">
+            Save this page or your order number{" "}
+            <span className="font-mono text-gold">{order.reference}</span> to
+            check your status anytime at{" "}
+            <Link href="/track" className="text-gold hover:underline">
+              order tracking
+            </Link>
+            .
+          </p>
+        ) : (
+          <Link
+            href="/account"
+            className="inline-block rounded-full border border-line px-6 py-2.5 text-sm text-mist transition-colors hover:text-foam"
+          >
+            View all my orders
+          </Link>
+        )}
       </div>
     </div>
   );
