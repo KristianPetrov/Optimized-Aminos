@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import type { Order, OrderItem } from "@/db/schema";
 import { formatPrice } from "./format";
+import { buildVenmoLink, formatVenmoHandle } from "./payments";
 
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
@@ -8,7 +9,7 @@ const resend = apiKey ? new Resend(apiKey) : null;
 const FROM = process.env.EMAIL_FROM || "Optimized Aminos <orders@optimizedaminos.com>";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 const ZELLE = process.env.NEXT_PUBLIC_ZELLE_RECIPIENT || "payments@optimizedaminos.com";
-const VENMO = process.env.NEXT_PUBLIC_VENMO_HANDLE || "@OptimizedAminos";
+const VENMO = process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -92,7 +93,11 @@ export async function sendOrderConfirmation(order: OrderWithItems) {
       ? `<p>Please send <strong style="color:#e8c879;">${formatPrice(order.totalCents)}</strong> via <strong>Zelle</strong> to:</p>
          <p style="font-size:18px;color:#f4f6fb;background:rgba(232,200,121,0.08);border:1px solid rgba(232,200,121,0.25);border-radius:10px;padding:14px;text-align:center;">${ZELLE}</p>`
       : `<p>Please send <strong style="color:#e8c879;">${formatPrice(order.totalCents)}</strong> via <strong>Venmo</strong> to:</p>
-         <p style="font-size:18px;color:#f4f6fb;background:rgba(232,200,121,0.08);border:1px solid rgba(232,200,121,0.25);border-radius:10px;padding:14px;text-align:center;">${VENMO}</p>`;
+         <p style="font-size:18px;color:#f4f6fb;background:rgba(232,200,121,0.08);border:1px solid rgba(232,200,121,0.25);border-radius:10px;padding:14px;text-align:center;">${formatVenmoHandle(VENMO)}</p>
+         <p style="text-align:center;margin-top:8px;">
+           <a href="${buildVenmoLink(VENMO, order.totalCents, order.reference)}" style="display:inline-block;padding:12px 24px;background:#3D95CE;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px;">Pay ${formatPrice(order.totalCents)} with Venmo</a>
+         </p>
+         <p style="font-size:12px;color:#7c8699;text-align:center;">This link pre-fills the amount and your order reference in the Venmo note.</p>`;
 
   const body = `
     <p>Thank you for your order. We've reserved your items and are awaiting payment.</p>

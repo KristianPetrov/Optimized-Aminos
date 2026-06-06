@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { CheckoutForm } from "@/components/checkout-form";
+import { formatVenmoHandle } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -30,9 +31,9 @@ export default async function CheckoutPage() {
             process.env.NEXT_PUBLIC_ZELLE_RECIPIENT ||
             "payments@optimizedaminos.com"
           }
-          venmoHandle={
-            process.env.NEXT_PUBLIC_VENMO_HANDLE || "@OptimizedAminos"
-          }
+          venmoHandle={formatVenmoHandle(
+            process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos",
+          )}
         />
       </div>
     </div>

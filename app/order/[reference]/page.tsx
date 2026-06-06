@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CheckCircle2, Copy, Truck } from "lucide-react";
+import { CheckCircle2, Copy, Truck, ArrowUpRight } from "lucide-react";
 import { auth } from "@/auth";
 import { getOrderByReference } from "@/lib/data";
 import { formatPrice, formatDate } from "@/lib/format";
+import { buildVenmoLink, formatVenmoHandle } from "@/lib/payments";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 
 export const dynamic = "force-dynamic";
@@ -32,8 +33,10 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
 
   const zelle =
     process.env.NEXT_PUBLIC_ZELLE_RECIPIENT || "payments@optimizedaminos.com";
-  const venmo = process.env.NEXT_PUBLIC_VENMO_HANDLE || "@OptimizedAminos";
-  const payTo = order.paymentMethod === "zelle" ? zelle : venmo;
+  const venmo = process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos";
+  const isVenmo = order.paymentMethod === "venmo";
+  const payTo = isVenmo ? formatVenmoHandle(venmo) : zelle;
+  const venmoLink = buildVenmoLink(venmo, order.totalCents, order.reference);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 lg:px-8">
@@ -72,11 +75,26 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
             <span className="font-mono text-base text-foam">{payTo}</span>
             <Copy size={16} className="text-faint" />
           </div>
+
+          {isVenmo && (
+            <a
+              href={venmoLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#3D95CE] py-3.5 text-sm font-semibold text-white transition-transform hover:scale-[1.01]"
+            >
+              Pay {formatPrice(order.totalCents)} with Venmo
+              <ArrowUpRight size={16} />
+            </a>
+          )}
+
           <p className="mt-3 text-xs leading-relaxed text-mist">
-            Include your order reference{" "}
-            <strong className="text-gold">{order.reference}</strong> in the
-            payment note so we can match it quickly. Your order ships once
-            payment is confirmed — we&apos;ll email you at every step.
+            {isVenmo
+              ? "The Venmo link pre-fills the amount and your order reference in the note."
+              : "Include your order reference in the payment note so we can match it quickly."}{" "}
+            Your order reference is{" "}
+            <strong className="text-gold">{order.reference}</strong>. Your order
+            ships once payment is confirmed — we&apos;ll email you at every step.
           </p>
         </div>
       )}
