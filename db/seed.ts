@@ -14,7 +14,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "BPC-157 is a synthetic pentadecapeptide studied extensively in preclinical models for its role in tissue repair, angiogenesis, and gut-lining research. A staple reference compound for recovery and connective-tissue investigations.",
     category: "Repair & Recovery",
-    priceCents: 5999,
+    priceCents: 8500,
     image: "/products/bpc-157-10mg.png",
     inventory: 50,
     featured: true,
@@ -26,7 +26,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "TB-500 is the synthetic analog of the active region of Thymosin Beta-4, a peptide investigated in models of cellular migration, vascularization, and recovery research.",
     category: "Repair & Recovery",
-    priceCents: 6499,
+    priceCents: 6000,
     image: "/products/tb-500-10mg.png",
     inventory: 40,
     featured: true,
@@ -50,7 +50,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "The Wolverine Pro research blend is formulated for advanced regeneration and recovery studies, combining repair-oriented peptides into a single reference vial.",
     category: "Repair & Recovery",
-    priceCents: 13999,
+    priceCents: 15000,
     image: "/products/wolverine-pro-10mg.png",
     inventory: 20,
     featured: true,
@@ -62,7 +62,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "KLOW is a multi-peptide research blend used in comparative regeneration and tissue-repair investigations.",
     category: "Repair & Recovery",
-    priceCents: 14999,
+    priceCents: 19500,
     image: "/products/klow-10mg-50mg.png",
     inventory: 18,
   },
@@ -73,7 +73,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "GHK-Cu is a naturally occurring copper-binding tripeptide widely referenced in dermal regeneration, collagen remodeling, and anti-inflammatory research.",
     category: "Repair & Recovery",
-    priceCents: 7499,
+    priceCents: 6500,
     image: "/products/ghk-cu-50mg.png",
     inventory: 35,
   },
@@ -84,7 +84,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "A combination of CJC-1295 and Ipamorelin, two growth-hormone secretagogues frequently paired in endocrine and metabolic research models.",
     category: "Growth & Metabolic",
-    priceCents: 8999,
+    priceCents: 10000,
     image: "/products/cjc-1295-10mg-ipamorelin-10mg.png",
     inventory: 30,
     featured: true,
@@ -107,7 +107,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "Tesamorelin is a stabilized growth-hormone-releasing hormone (GHRH) analog referenced in metabolic and adipose-tissue research.",
     category: "Growth & Metabolic",
-    priceCents: 8999,
+    priceCents: 10000,
     image: "/products/tesamorelin-10mg.png",
     inventory: 28,
   },
@@ -118,7 +118,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "A higher-concentration vial of Tesamorelin, a stabilized GHRH analog used in metabolic and adipose-tissue research.",
     category: "Growth & Metabolic",
-    priceCents: 13999,
+    priceCents: 14000,
     image: "/products/tesamorelin-20mg.png",
     inventory: 20,
   },
@@ -140,7 +140,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "AICAR is an AMP-activated protein kinase (AMPK) activator referenced in cellular energy metabolism and endurance research.",
     category: "Growth & Metabolic",
-    priceCents: 9999,
+    priceCents: 14000,
     image: "/products/aicar-50mg.png",
     inventory: 22,
   },
@@ -151,7 +151,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "Retatrutide is a triple-agonist peptide (GIP/GLP-1/glucagon) under active investigation in metabolic and weight-regulation research.",
     category: "Growth & Metabolic",
-    priceCents: 12999,
+    priceCents: 15000,
     image: "/products/rt-3-10mg.png",
     inventory: 25,
     featured: true,
@@ -163,7 +163,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "A higher-concentration vial of Retatrutide, a triple-agonist peptide (GIP/GLP-1/glucagon) studied in metabolic research.",
     category: "Growth & Metabolic",
-    priceCents: 18999,
+    priceCents: 20000,
     image: "/products/rt-3-20mg.png",
     inventory: 18,
   },
@@ -174,7 +174,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "The highest-concentration Retatrutide vial in the catalog, intended for extended metabolic research protocols.",
     category: "Growth & Metabolic",
-    priceCents: 24999,
+    priceCents: 25000,
     image: "/products/rt-3-30mg.png",
     inventory: 15,
   },
@@ -185,7 +185,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "MOTS-c is a mitochondrial-derived peptide studied for its role in metabolic regulation, insulin sensitivity, and cellular energy research.",
     category: "Longevity & Mitochondrial",
-    priceCents: 7999,
+    priceCents: 6500,
     image: "/products/mots-c-10mg.png",
     inventory: 30,
   },
@@ -196,7 +196,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "A high-concentration MOTS-c vial for extended mitochondrial and metabolic research protocols.",
     category: "Longevity & Mitochondrial",
-    priceCents: 21999,
+    priceCents: 13000,
     image: "/products/mots-c-40mg.png",
     inventory: 16,
   },
@@ -207,7 +207,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "SS-31 is a mitochondria-targeted tetrapeptide referenced in research on cardiolipin stabilization and cellular energy production.",
     category: "Longevity & Mitochondrial",
-    priceCents: 9999,
+    priceCents: 7500,
     image: "/products/ss-31-10mg.png",
     inventory: 20,
   },
@@ -218,7 +218,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "NAD+ is an essential coenzyme central to cellular metabolism, DNA repair, and longevity research at the mitochondrial level.",
     category: "Longevity & Mitochondrial",
-    priceCents: 11999,
+    priceCents: 22500,
     image: "/products/nad-1000mg.png",
     inventory: 24,
     featured: true,
@@ -230,7 +230,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "Semax is a synthetic peptide derived from ACTH(4-10), studied for its influence on BDNF expression and cognitive research models.",
     category: "Cognitive & Nootropic",
-    priceCents: 6499,
+    priceCents: 12500,
     image: "/products/semax-10mg.png",
     inventory: 28,
   },
@@ -241,7 +241,7 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     description:
       "Selank is a synthetic analog of the immunomodulatory peptide tuftsin, referenced in anxiolytic and neuroregulatory research.",
     category: "Cognitive & Nootropic",
-    priceCents: 6499,
+    priceCents: 12500,
     image: "/products/selank-10mg.png",
     inventory: 28,
   },
