@@ -1,7 +1,14 @@
 import "server-only";
 import { db } from "@/db";
-import { products, orders, orderItems } from "@/db/schema";
-import { and, desc, eq } from "drizzle-orm";
+import {
+  products,
+  orders,
+  orderItems,
+  referralPartners,
+  referralCodes,
+  type ReferralCode,
+} from "@/db/schema";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 
 export async function getActiveProducts() {
   return db
@@ -72,6 +79,58 @@ export async function getOrderWithItems(orderId: string) {
   if (!order) return null;
   const items = await getOrderItems(orderId);
   return { ...order, items };
+}
+
+export type ReferralCodeWithStats = ReferralCode & {
+  orderCount: number;
+  revenueCents: number;
+  discountGivenCents: number;
+};
+
+export async function getReferralPartnersWithCodes() {
+  const partners = await db
+    .select()
+    .from(referralPartners)
+    .orderBy(desc(referralPartners.createdAt));
+
+  const codes = await db
+    .select()
+    .from(referralCodes)
+    .orderBy(desc(referralCodes.createdAt));
+
+  // Aggregate confirmed usage (paid/shipped) per code.
+  const usage = await db
+    .select({
+      referralCodeId: orders.referralCodeId,
+      orderCount: sql<number>`count(*)::int`,
+      revenueCents: sql<number>`coalesce(sum(${orders.totalCents}), 0)::int`,
+      discountGivenCents: sql<number>`coalesce(sum(${orders.discountCents}), 0)::int`,
+    })
+    .from(orders)
+    .where(
+      and(
+        isNotNull(orders.referralCodeId),
+        inArray(orders.status, ["paid", "shipped"]),
+      ),
+    )
+    .groupBy(orders.referralCodeId);
+
+  const usageByCode = new Map(usage.map((u) => [u.referralCodeId, u]));
+
+  const codesWithStats: ReferralCodeWithStats[] = codes.map((c) => {
+    const u = usageByCode.get(c.id);
+    return {
+      ...c,
+      orderCount: u?.orderCount ?? 0,
+      revenueCents: u?.revenueCents ?? 0,
+      discountGivenCents: u?.discountGivenCents ?? 0,
+    };
+  });
+
+  return partners.map((partner) => ({
+    ...partner,
+    codes: codesWithStats.filter((c) => c.partnerId === partner.id),
+  }));
 }
 
 export async function getOrderByReference(reference: string) {

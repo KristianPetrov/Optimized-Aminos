@@ -1,13 +1,14 @@
 "use server";
 
 import { z } from "zod";
-import { inArray, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { products, orders, orderItems } from "@/db/schema";
+import { products, orders, orderItems, referralCodes } from "@/db/schema";
 import { auth } from "@/auth";
 import { generateOrderReference } from "@/lib/format";
 import { getOrderByReference } from "@/lib/data";
+import { validateReferralCode } from "@/lib/referrals";
 import { sendOrderConfirmation, sendAdminNewOrder } from "@/lib/email";
 
 const shippingSchema = z.object({
@@ -34,6 +35,7 @@ const placeOrderSchema = z.object({
   shipping: shippingSchema,
   paymentMethod: z.enum(["zelle", "venmo"]),
   acceptedTerms: z.boolean(),
+  referralCode: z.string().max(24).optional(),
 });
 
 export type PlaceOrderInput = z.input<typeof placeOrderSchema>;
@@ -58,7 +60,8 @@ export async function placeOrder(
     };
   }
 
-  const { items, shipping, paymentMethod, acceptedTerms } = parsed.data;
+  const { items, shipping, paymentMethod, acceptedTerms, referralCode } =
+    parsed.data;
 
   if (!acceptedTerms) {
     return {
@@ -109,8 +112,22 @@ export async function placeOrder(
     });
   }
 
+  // Re-validate the referral code server-side against the real subtotal.
+  let discountCents = 0;
+  let appliedCodeId: string | null = null;
+  let appliedCode: string | null = null;
+  if (referralCode?.trim()) {
+    const validation = await validateReferralCode(referralCode, subtotalCents);
+    if (!validation.ok) {
+      return { ok: false, error: validation.error };
+    }
+    discountCents = validation.discountCents;
+    appliedCodeId = validation.code.id;
+    appliedCode = validation.code.code;
+  }
+
   const shippingCents = 0; // Free research-grade shipping
-  const totalCents = subtotalCents + shippingCents;
+  const totalCents = subtotalCents - discountCents + shippingCents;
   const reference = generateOrderReference();
 
   const [order] = await db
@@ -123,10 +140,20 @@ export async function placeOrder(
       paymentMethod,
       subtotalCents,
       shippingCents,
+      discountCents,
+      referralCodeId: appliedCodeId,
+      referralCode: appliedCode,
       totalCents,
       shippingAddress: shipping,
     })
     .returning();
+
+  if (appliedCodeId) {
+    await db
+      .update(referralCodes)
+      .set({ usedCount: sql`${referralCodes.usedCount} + 1` })
+      .where(eq(referralCodes.id, appliedCodeId));
+  }
 
   await db.insert(orderItems).values(
     lineItems.map((li) => ({

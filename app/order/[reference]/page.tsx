@@ -7,6 +7,7 @@ import { auth } from "@/auth";
 import { getOrderByReference } from "@/lib/data";
 import { formatPrice, formatDate } from "@/lib/format";
 import { buildVenmoLink, formatVenmoHandle } from "@/lib/payments";
+import { getTrackingUrl } from "@/lib/tracking";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,7 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
   const isVenmo = order.paymentMethod === "venmo";
   const payTo = isVenmo ? formatVenmoHandle(venmo) : zelle;
   const venmoLink = buildVenmoLink(venmo, order.totalCents, order.reference);
+  const trackingUrl = getTrackingUrl(order.carrier, order.trackingNumber);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 lg:px-8">
@@ -119,8 +121,32 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
           </p>
           <p className="mt-1 text-sm text-mist">
             Tracking:{" "}
-            <span className="font-mono text-foam">{order.trackingNumber}</span>
+            {trackingUrl ? (
+              <a
+                href={trackingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-mono text-sky-300 underline underline-offset-2 transition-colors hover:text-sky-200"
+              >
+                {order.trackingNumber}
+              </a>
+            ) : (
+              <span className="font-mono text-foam">
+                {order.trackingNumber}
+              </span>
+            )}
           </p>
+          {trackingUrl && (
+            <a
+              href={trackingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl border border-sky-400/40 px-4 py-2.5 text-sm text-sky-300 transition-colors hover:bg-sky-400/10"
+            >
+              Track package on {order.carrier}
+              <ArrowUpRight size={15} />
+            </a>
+          )}
         </div>
       )}
 
@@ -151,9 +177,28 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
           ))}
         </ul>
         <div className="my-5 h-px bg-line" />
-        <div className="flex justify-between text-base font-semibold text-foam">
-          <span>Total</span>
-          <span>{formatPrice(order.totalCents)}</span>
+        <div className="space-y-2 text-sm">
+          {order.discountCents > 0 && (
+            <>
+              <div className="flex justify-between text-mist">
+                <span>Subtotal</span>
+                <span>{formatPrice(order.subtotalCents)}</span>
+              </div>
+              <div className="flex justify-between text-emerald-300">
+                <span>
+                  Discount
+                  {order.referralCode && (
+                    <span className="ml-1 font-mono">({order.referralCode})</span>
+                  )}
+                </span>
+                <span>−{formatPrice(order.discountCents)}</span>
+              </div>
+            </>
+          )}
+          <div className="flex justify-between pt-1 text-base font-semibold text-foam">
+            <span>Total</span>
+            <span>{formatPrice(order.totalCents)}</span>
+          </div>
         </div>
       </div>
 

@@ -21,6 +21,8 @@ export const orderStatusEnum = pgEnum("order_status", [
 
 export const paymentMethodEnum = pgEnum("payment_method", ["zelle", "venmo"]);
 
+export const discountTypeEnum = pgEnum("discount_type", ["percent", "fixed"]);
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name"),
@@ -51,6 +53,34 @@ export const products = pgTable("products", {
     .defaultNow(),
 });
 
+export const referralPartners = pgTable("referral_partners", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  email: text("email"),
+  notes: text("notes"),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const referralCodes = pgTable("referral_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partnerId: uuid("partner_id")
+    .notNull()
+    .references(() => referralPartners.id, { onDelete: "cascade" }),
+  code: text("code").notNull().unique(),
+  discountType: discountTypeEnum("discount_type").notNull(),
+  // Percent: whole number 1-100. Fixed: discount amount in cents.
+  discountValue: integer("discount_value").notNull(),
+  minSubtotalCents: integer("min_subtotal_cents").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  usedCount: integer("used_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 type ShippingAddress = {
   fullName: string;
   email: string;
@@ -73,6 +103,12 @@ export const orders = pgTable("orders", {
   paymentMethod: paymentMethodEnum("payment_method").notNull(),
   subtotalCents: integer("subtotal_cents").notNull(),
   shippingCents: integer("shipping_cents").notNull().default(0),
+  discountCents: integer("discount_cents").notNull().default(0),
+  referralCodeId: uuid("referral_code_id").references(() => referralCodes.id, {
+    onDelete: "set null",
+  }),
+  // Snapshot of the code string at time of purchase
+  referralCode: text("referral_code"),
   totalCents: integer("total_cents").notNull(),
   shippingAddress: jsonb("shipping_address").$type<ShippingAddress>().notNull(),
   trackingNumber: text("tracking_number"),
@@ -114,6 +150,21 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
   items: many(orderItems),
 }));
 
+export const referralPartnersRelations = relations(
+  referralPartners,
+  ({ many }) => ({
+    codes: many(referralCodes),
+  }),
+);
+
+export const referralCodesRelations = relations(referralCodes, ({ one, many }) => ({
+  partner: one(referralPartners, {
+    fields: [referralCodes.partnerId],
+    references: [referralPartners.id],
+  }),
+  orders: many(orders),
+}));
+
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   order: one(orders, {
     fields: [orderItems.orderId],
@@ -132,4 +183,7 @@ export type Order = typeof orders.$inferSelect;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
 export type PaymentMethod = (typeof paymentMethodEnum.enumValues)[number];
+export type ReferralPartner = typeof referralPartners.$inferSelect;
+export type ReferralCode = typeof referralCodes.$inferSelect;
+export type DiscountType = (typeof discountTypeEnum.enumValues)[number];
 export type { ShippingAddress };

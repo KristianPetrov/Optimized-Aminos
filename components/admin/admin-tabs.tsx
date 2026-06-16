@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardList, Boxes } from "lucide-react";
+import { ClipboardList, Boxes, Handshake, BarChart3 } from "lucide-react";
 
 const tabs = [
   { href: "/admin/orders", label: "Orders", icon: ClipboardList },
   { href: "/admin/inventory", label: "Inventory", icon: Boxes },
+  { href: "/admin/referrals", label: "Referrals", icon: Handshake },
+  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 export function AdminTabs() {

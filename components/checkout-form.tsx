@@ -1,15 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Lock } from "lucide-react";
+import { AlertCircle, Lock, Tag, X } from "lucide-react";
 import { useCart } from "./cart-provider";
 import { placeOrder } from "@/lib/actions/orders";
+import { applyReferralCode } from "@/lib/actions/referrals";
 import { formatPrice } from "@/lib/format";
 
 type PaymentMethod = "zelle" | "venmo";
+
+type AppliedCode = {
+  code: string;
+  discountCents: number;
+  description: string;
+};
 
 export function CheckoutForm({
   defaultEmail,
@@ -27,6 +34,50 @@ export function CheckoutForm({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [method, setMethod] = useState<PaymentMethod>("zelle");
+  const [codeInput, setCodeInput] = useState("");
+  const [applied, setApplied] = useState<AppliedCode | null>(null);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [codePending, startCodeTransition] = useTransition();
+
+  const discountCents = applied
+    ? Math.min(applied.discountCents, subtotalCents)
+    : 0;
+  const totalCents = subtotalCents - discountCents;
+
+  // Re-validate when the cart total changes so percent discounts and
+  // minimum-order requirements stay accurate.
+  useEffect(() => {
+    if (!applied) return;
+    let stale = false;
+    applyReferralCode(applied.code, subtotalCents).then((result) => {
+      if (stale) return;
+      if (result.ok) {
+        setApplied(result);
+      } else {
+        setApplied(null);
+        setCodeError(result.error);
+      }
+    });
+    return () => {
+      stale = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subtotalCents]);
+
+  function handleApplyCode() {
+    const code = codeInput.trim();
+    if (!code) return;
+    setCodeError(null);
+    startCodeTransition(async () => {
+      const result = await applyReferralCode(code, subtotalCents);
+      if (result.ok) {
+        setApplied(result);
+        setCodeInput("");
+      } else {
+        setCodeError(result.error);
+      }
+    });
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -49,6 +100,7 @@ export function CheckoutForm({
       },
       paymentMethod: method,
       acceptedTerms: data.get("acceptedTerms") === "on",
+      referralCode: applied?.code,
     };
 
     if (!payload.acceptedTerms) {
@@ -180,7 +232,7 @@ export function CheckoutForm({
           <ul className="mt-5 space-y-4">
             {items.map((item) => (
               <li key={item.slug} className="flex gap-3">
-                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-gradient-to-b from-white to-zinc-100">
+                <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-linear-to-b from-white to-zinc-100">
                   <Image src={item.image} alt={item.name} fill sizes="56px" className="object-contain p-1" />
                 </div>
                 <div className="flex flex-1 items-center justify-between gap-2">
@@ -198,23 +250,77 @@ export function CheckoutForm({
 
           <div className="my-5 h-px bg-line" />
 
+          {/* Referral code */}
+          {applied ? (
+            <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-sm">
+              <span className="flex items-center gap-2 text-emerald-300">
+                <Tag size={14} />
+                <span className="font-mono font-semibold">{applied.code}</span>
+                <span className="text-xs text-mist">{applied.description}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setApplied(null)}
+                aria-label="Remove referral code"
+                className="text-faint transition-colors hover:text-foam"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex gap-2">
+                <input
+                  value={codeInput}
+                  onChange={(e) => {
+                    setCodeInput(e.target.value.toUpperCase());
+                    setCodeError(null);
+                  }}
+                  placeholder="Referral code"
+                  className="w-full rounded-xl border border-line bg-ink/60 px-4 py-2.5 font-mono text-sm uppercase text-foam placeholder:font-sans placeholder:normal-case placeholder:text-faint outline-none transition-colors focus:border-gold/50"
+                />
+                <button
+                  type="button"
+                  onClick={handleApplyCode}
+                  disabled={codePending || !codeInput.trim()}
+                  className="shrink-0 rounded-xl border border-gold/40 px-4 py-2.5 text-sm text-gold transition-colors hover:bg-gold/10 disabled:opacity-50"
+                >
+                  {codePending ? "..." : "Apply"}
+                </button>
+              </div>
+              {codeError && (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-red-400">
+                  <AlertCircle size={13} /> {codeError}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="my-5 h-px bg-line" />
+
           <div className="space-y-2 text-sm">
             <div className="flex justify-between text-mist">
               <span>Subtotal</span>
               <span>{formatPrice(subtotalCents)}</span>
             </div>
+            {applied && (
+              <div className="flex justify-between text-emerald-300">
+                <span>Discount ({applied.code})</span>
+                <span>−{formatPrice(discountCents)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-mist">
               <span>Shipping</span>
               <span className="text-gold">Complimentary</span>
             </div>
             <div className="flex justify-between pt-2 text-base font-semibold text-foam">
               <span>Total</span>
-              <span>{formatPrice(subtotalCents)}</span>
+              <span>{formatPrice(totalCents)}</span>
             </div>
           </div>
 
           <label className="mt-5 flex items-start gap-2.5 text-xs text-mist">
-            <input type="checkbox" name="acceptedTerms" className="mt-0.5 h-4 w-4 accent-[#e8c879]" />
+            <input type="checkbox" name="acceptedTerms" className="mt-0.5 h-4 w-4 accent-gold" />
             <span>
               I confirm I am a qualified researcher and these products are for{" "}
               <strong className="text-gold">Research Use Only</strong> — not for
@@ -232,7 +338,7 @@ export function CheckoutForm({
           <button
             type="submit"
             disabled={isPending}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold to-gold-deep py-3.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.01] disabled:opacity-60"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-gold to-gold-deep py-3.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.01] disabled:opacity-60"
           >
             <Lock size={15} />
             {isPending ? "Placing order..." : "Place order"}

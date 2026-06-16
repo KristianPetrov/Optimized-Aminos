@@ -17,6 +17,7 @@ import {
   type AdminActionState,
 } from "@/lib/actions/admin";
 import { formatPrice, formatDate } from "@/lib/format";
+import { getTrackingUrl } from "@/lib/tracking";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 
 type AdminOrder = Order & { items: OrderItem[] };
@@ -91,6 +92,19 @@ export function OrderManager({ order }: { order: AdminOrder }) {
                   </li>
                 ))}
               </ul>
+              {order.discountCents > 0 && (
+                <p className="mt-2 flex justify-between text-sm text-emerald-300">
+                  <span>
+                    Discount
+                    {order.referralCode && (
+                      <span className="ml-1 font-mono">
+                        ({order.referralCode})
+                      </span>
+                    )}
+                  </span>
+                  <span>−{formatPrice(order.discountCents)}</span>
+                </p>
+              )}
 
               <h4 className="mt-5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-mist">
                 <MapPin size={13} /> Ship to
@@ -119,9 +133,26 @@ export function OrderManager({ order }: { order: AdminOrder }) {
                   <p className="flex items-center gap-2 text-sky-300">
                     <Truck size={15} /> Shipped via {order.carrier}
                   </p>
-                  <p className="mt-1 font-mono text-foam">
-                    {order.trackingNumber}
-                  </p>
+                  {(() => {
+                    const url = getTrackingUrl(
+                      order.carrier,
+                      order.trackingNumber,
+                    );
+                    return url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-block font-mono text-sky-300 underline underline-offset-2 transition-colors hover:text-sky-200"
+                      >
+                        {order.trackingNumber}
+                      </a>
+                    ) : (
+                      <p className="mt-1 font-mono text-foam">
+                        {order.trackingNumber}
+                      </p>
+                    );
+                  })()}
                 </div>
               )}
 

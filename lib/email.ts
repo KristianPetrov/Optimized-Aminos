@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import type { Order, OrderItem } from "@/db/schema";
 import { formatPrice } from "./format";
 import { buildVenmoLink, formatVenmoHandle } from "./payments";
+import { getTrackingUrl } from "./tracking";
 
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
@@ -72,6 +73,14 @@ function itemsTable(order: OrderWithItems): string {
         <td style="padding:10px 0;color:#aeb7c7;">Subtotal</td>
         <td style="padding:10px 0;color:#aeb7c7;text-align:right;">${formatPrice(order.subtotalCents)}</td>
       </tr>
+      ${
+        order.discountCents > 0
+          ? `<tr>
+        <td style="padding:4px 0;color:#5dd4a3;">Discount${order.referralCode ? ` (${order.referralCode})` : ""}</td>
+        <td style="padding:4px 0;color:#5dd4a3;text-align:right;">−${formatPrice(order.discountCents)}</td>
+      </tr>`
+          : ""
+      }
       <tr>
         <td style="padding:4px 0;color:#aeb7c7;">Shipping</td>
         <td style="padding:4px 0;color:#aeb7c7;text-align:right;">${order.shippingCents === 0 ? "FREE" : formatPrice(order.shippingCents)}</td>
@@ -123,11 +132,16 @@ export async function sendPaymentReceived(order: OrderWithItems) {
 }
 
 export async function sendOrderShipped(order: OrderWithItems) {
+  const trackingUrl = getTrackingUrl(order.carrier, order.trackingNumber);
+  const trackingNumberHtml = trackingUrl
+    ? `<a href="${trackingUrl}" style="color:#e8c879;font-weight:700;text-decoration:underline;">${order.trackingNumber}</a>`
+    : `<strong style="color:#e8c879;">${order.trackingNumber}</strong>`;
   const tracking = order.trackingNumber
     ? `<p style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px 16px;">
          Carrier: <strong style="color:#f4f6fb;">${order.carrier ?? "—"}</strong><br/>
-         Tracking number: <strong style="color:#e8c879;">${order.trackingNumber}</strong>
-       </p>`
+         Tracking number: ${trackingNumberHtml}
+       </p>
+       ${trackingUrl ? `<p style="text-align:center;">${button("Track your package", trackingUrl)}</p>` : ""}`
     : "";
   const body = `
     <p>Great news — order <strong style="color:#f4f6fb;">${order.reference}</strong> has shipped!</p>
