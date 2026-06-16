@@ -129,7 +129,7 @@ export function CartDrawer() {
                 </span>
               </div>
               <p className="mb-3 text-xs text-faint">
-                Shipping calculated as complimentary. Taxes not applicable to
+                Shipping options available at checkout. Taxes not applicable to
                 research materials.
               </p>
               <button

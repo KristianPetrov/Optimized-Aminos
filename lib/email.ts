@@ -3,6 +3,7 @@ import type { Order, OrderItem } from "@/db/schema";
 import { formatPrice } from "./format";
 import { buildVenmoLink, formatVenmoHandle } from "./payments";
 import { getTrackingUrl } from "./tracking";
+import { getShippingOptionLabel } from "./shipping";
 
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
@@ -59,6 +60,9 @@ function layout(heading: string, body: string): string {
 }
 
 function itemsTable(order: OrderWithItems): string {
+  const shippingLabel = getShippingOptionLabel(
+    order.shippingAddress.shippingMethod,
+  );
   const rows = order.items
     .map(
       (item) => `
@@ -89,8 +93,8 @@ function itemsTable(order: OrderWithItems): string {
           : ""
       }
       <tr>
-        <td style="padding:4px 0;color:#aeb7c7;">Shipping</td>
-        <td style="padding:4px 0;color:#aeb7c7;text-align:right;">${order.shippingCents === 0 ? "FREE" : formatPrice(order.shippingCents)}</td>
+        <td style="padding:4px 0;color:#aeb7c7;">${shippingLabel}</td>
+        <td style="padding:4px 0;color:#aeb7c7;text-align:right;">${formatPrice(order.shippingCents)}</td>
       </tr>
       <tr>
         <td style="padding:10px 0;color:#e8c879;font-weight:700;font-size:17px;">Total</td>

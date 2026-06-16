@@ -18,6 +18,7 @@ import {
 } from "@/lib/actions/admin";
 import { formatPrice, formatDate } from "@/lib/format";
 import { getTrackingUrl } from "@/lib/tracking";
+import { getShippingOptionLabel } from "@/lib/shipping";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 
 type AdminOrder = Order & { items: OrderItem[] };
@@ -33,6 +34,7 @@ export function OrderManager({ order }: { order: AdminOrder }) {
   >(markOrderShipped, null);
 
   const addr = order.shippingAddress;
+  const shippingLabel = getShippingOptionLabel(addr.shippingMethod);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-ink-800/50">
@@ -105,6 +107,10 @@ export function OrderManager({ order }: { order: AdminOrder }) {
                   <span>−{formatPrice(order.discountCents)}</span>
                 </p>
               )}
+              <p className="mt-2 flex justify-between text-sm text-mist">
+                <span>{shippingLabel}</span>
+                <span>{formatPrice(order.shippingCents)}</span>
+              </p>
 
               <h4 className="mt-5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-mist">
                 <MapPin size={13} /> Ship to

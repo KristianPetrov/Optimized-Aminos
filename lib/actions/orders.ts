@@ -10,6 +10,7 @@ import { generateOrderReference } from "@/lib/format";
 import { getOrderByReference } from "@/lib/data";
 import { validateReferralCode } from "@/lib/referrals";
 import { sendOrderConfirmation, sendAdminNewOrder } from "@/lib/email";
+import { getShippingOption } from "@/lib/shipping";
 
 const shippingSchema = z.object({
   fullName: z.string().min(2, "Full name is required."),
@@ -21,6 +22,7 @@ const shippingSchema = z.object({
   state: z.string().min(2, "State / region is required."),
   postalCode: z.string().min(3, "Postal code is required."),
   country: z.string().min(2, "Country is required."),
+  shippingMethod: z.enum(["standard", "overnight"]),
 });
 
 const placeOrderSchema = z.object({
@@ -126,7 +128,12 @@ export async function placeOrder(
     appliedCode = validation.code.code;
   }
 
-  const shippingCents = 0; // Free research-grade shipping
+  const selectedShipping = getShippingOption(shipping.shippingMethod);
+  if (!selectedShipping) {
+    return { ok: false, error: "Select a valid shipping method." };
+  }
+
+  const shippingCents = selectedShipping.priceCents;
   const totalCents = subtotalCents - discountCents + shippingCents;
   const reference = generateOrderReference();
 

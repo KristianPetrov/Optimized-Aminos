@@ -9,6 +9,10 @@ import { useCart } from "./cart-provider";
 import { placeOrder } from "@/lib/actions/orders";
 import { applyReferralCode } from "@/lib/actions/referrals";
 import { formatPrice } from "@/lib/format";
+import {
+  shippingOptions,
+  type ShippingOptionId,
+} from "@/lib/shipping";
 
 type PaymentMethod = "zelle" | "venmo";
 
@@ -34,15 +38,20 @@ export function CheckoutForm({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [method, setMethod] = useState<PaymentMethod>("zelle");
+  const [shippingMethod, setShippingMethod] =
+    useState<ShippingOptionId>("standard");
   const [codeInput, setCodeInput] = useState("");
   const [applied, setApplied] = useState<AppliedCode | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
   const [codePending, startCodeTransition] = useTransition();
+  const shippingCents =
+    shippingOptions.find((option) => option.id === shippingMethod)
+      ?.priceCents ?? 0;
 
   const discountCents = applied
     ? Math.min(applied.discountCents, subtotalCents)
     : 0;
-  const totalCents = subtotalCents - discountCents;
+  const totalCents = subtotalCents - discountCents + shippingCents;
 
   // Re-validate when the cart total changes so percent discounts and
   // minimum-order requirements stay accurate.
@@ -97,6 +106,7 @@ export function CheckoutForm({
         state: String(data.get("state") || ""),
         postalCode: String(data.get("postalCode") || ""),
         country: String(data.get("country") || "United States"),
+        shippingMethod,
       },
       paymentMethod: method,
       acceptedTerms: data.get("acceptedTerms") === "on",
@@ -182,6 +192,43 @@ export function CheckoutForm({
               <label className="mb-1.5 block text-xs text-mist">Country</label>
               <input name="country" required defaultValue="United States" className={inputClass} />
             </div>
+          </div>
+        </section>
+
+        {/* Shipping method */}
+        <section className="panel rounded-2xl p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-foam">
+            Shipping method
+          </h2>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {shippingOptions.map((option) => (
+              <button
+                type="button"
+                key={option.id}
+                onClick={() => setShippingMethod(option.id)}
+                className={`rounded-xl border px-4 py-4 text-left transition-colors ${
+                  shippingMethod === option.id
+                    ? "border-gold/60 bg-gold/10"
+                    : "border-line bg-ink/40 hover:border-gold/30"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-foam">
+                    {option.label}
+                  </span>
+                  <span
+                    className={`h-4 w-4 rounded-full border ${
+                      shippingMethod === option.id
+                        ? "border-gold bg-gold"
+                        : "border-faint"
+                    }`}
+                  />
+                </div>
+                <p className="mt-1 text-sm text-gold">
+                  {formatPrice(option.priceCents)}
+                </p>
+              </button>
+            ))}
           </div>
         </section>
 
@@ -311,7 +358,7 @@ export function CheckoutForm({
             )}
             <div className="flex justify-between text-mist">
               <span>Shipping</span>
-              <span className="text-gold">Complimentary</span>
+              <span className="text-gold">{formatPrice(shippingCents)}</span>
             </div>
             <div className="flex justify-between pt-2 text-base font-semibold text-foam">
               <span>Total</span>

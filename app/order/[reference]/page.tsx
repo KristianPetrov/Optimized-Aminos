@@ -8,6 +8,7 @@ import { getOrderByReference } from "@/lib/data";
 import { formatPrice, formatDate } from "@/lib/format";
 import { buildVenmoLink, formatVenmoHandle } from "@/lib/payments";
 import { getTrackingUrl } from "@/lib/tracking";
+import { getShippingOptionLabel } from "@/lib/shipping";
 import { OrderStatusBadge } from "@/components/order-status-badge";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +48,9 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
   const venmo = process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos";
   const venmoLink = buildVenmoLink(venmo, order.totalCents, order.reference);
   const trackingUrl = getTrackingUrl(order.carrier, order.trackingNumber);
+  const shippingLabel = getShippingOptionLabel(
+    order.shippingAddress.shippingMethod,
+  );
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-14 sm:px-6 lg:px-8">
@@ -189,23 +193,25 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
         </ul>
         <div className="my-5 h-px bg-line" />
         <div className="space-y-2 text-sm">
+          <div className="flex justify-between text-mist">
+            <span>Subtotal</span>
+            <span>{formatPrice(order.subtotalCents)}</span>
+          </div>
           {order.discountCents > 0 && (
-            <>
-              <div className="flex justify-between text-mist">
-                <span>Subtotal</span>
-                <span>{formatPrice(order.subtotalCents)}</span>
-              </div>
-              <div className="flex justify-between text-emerald-300">
-                <span>
-                  Discount
-                  {order.referralCode && (
-                    <span className="ml-1 font-mono">({order.referralCode})</span>
-                  )}
-                </span>
-                <span>−{formatPrice(order.discountCents)}</span>
-              </div>
-            </>
+            <div className="flex justify-between text-emerald-300">
+              <span>
+                Discount
+                {order.referralCode && (
+                  <span className="ml-1 font-mono">({order.referralCode})</span>
+                )}
+              </span>
+              <span>−{formatPrice(order.discountCents)}</span>
+            </div>
           )}
+          <div className="flex justify-between text-mist">
+            <span>{shippingLabel}</span>
+            <span>{formatPrice(order.shippingCents)}</span>
+          </div>
           <div className="flex justify-between pt-1 text-base font-semibold text-foam">
             <span>Total</span>
             <span>{formatPrice(order.totalCents)}</span>

@@ -110,6 +110,7 @@ type ShippingAddress = {
   state: string;
   postalCode: string;
   country: string;
+  shippingMethod?: "standard" | "overnight";
 };
 
 export const orders = pgTable("orders", {
