@@ -188,11 +188,11 @@ export function CheckoutForm({
         {/* Payment */}
         <section className="panel rounded-2xl p-6">
           <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-foam">
-            Payment method
+            Preferred payment method
           </h2>
           <p className="mt-2 text-xs text-mist">
-            We process payments manually. Choose a method — you&apos;ll receive
-            instructions and your order reference after placing the order.
+            We process payments manually. Pick a preferred method for our
+            records; your receipt will include both Zelle and Venmo options.
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
             {(["zelle", "venmo"] as const).map((m) => (

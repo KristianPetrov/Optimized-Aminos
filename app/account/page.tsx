@@ -70,7 +70,7 @@ export default async function AccountPage() {
                   </p>
                   <p className="mt-1 text-xs text-faint">
                     {formatDate(order.createdAt)} ·{" "}
-                    <span className="capitalize">{order.paymentMethod}</span>
+                    Zelle or Venmo
                   </p>
                 </div>
                 <div className="flex items-center gap-5">

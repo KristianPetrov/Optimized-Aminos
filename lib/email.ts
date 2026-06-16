@@ -103,24 +103,32 @@ function button(label: string, href: string): string {
   return `<a href="${href}" style="display:inline-block;margin-top:8px;padding:12px 24px;background:linear-gradient(90deg,#e8c879,#cda34f);color:#05070d;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px;">${label}</a>`;
 }
 
-export async function sendOrderConfirmation(order: OrderWithItems) {
-  const payInstructions =
-    order.paymentMethod === "zelle"
-      ? `<p>Please send <strong style="color:#e8c879;">${formatPrice(order.totalCents)}</strong> via <strong>Zelle</strong> to:</p>
-         <p style="font-size:18px;color:#f4f6fb;background:rgba(232,200,121,0.08);border:1px solid rgba(232,200,121,0.25);border-radius:10px;padding:14px;text-align:center;">${ZELLE}</p>`
-      : `<p>Please send <strong style="color:#e8c879;">${formatPrice(order.totalCents)}</strong> via <strong>Venmo</strong> to:</p>
-         <p style="font-size:18px;color:#f4f6fb;background:rgba(232,200,121,0.08);border:1px solid rgba(232,200,121,0.25);border-radius:10px;padding:14px;text-align:center;">${formatVenmoHandle(VENMO)}</p>
-         <p style="text-align:center;margin-top:8px;">
-           <a href="${buildVenmoLink(VENMO, order.totalCents, order.reference)}" style="display:inline-block;padding:12px 24px;background:#3D95CE;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;font-size:14px;">Pay ${formatPrice(order.totalCents)} with Venmo</a>
-         </p>
-         <p style="font-size:12px;color:#7c8699;text-align:center;">This link pre-fills the amount and your order reference in the Venmo note.</p>`;
+function paymentOptions(order: OrderWithItems): string {
+  const venmoLink = buildVenmoLink(VENMO, order.totalCents, order.reference);
 
+  return `
+    <p>Please send <strong style="color:#e8c879;">${formatPrice(order.totalCents)}</strong> using either payment method below:</p>
+    <div style="margin:14px 0;border:1px solid rgba(232,200,121,0.25);border-radius:12px;overflow:hidden;">
+      <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.08);">
+        <p style="margin:0 0 6px;color:#f4f6fb;font-weight:700;">Zelle</p>
+        <p style="margin:0;font-size:17px;color:#e8c879;font-weight:700;">${ZELLE}</p>
+      </div>
+      <div style="padding:14px 16px;">
+        <p style="margin:0 0 6px;color:#f4f6fb;font-weight:700;">Venmo</p>
+        <p style="margin:0 0 10px;font-size:17px;color:#e8c879;font-weight:700;">${formatVenmoHandle(VENMO)}</p>
+        <a href="${venmoLink}" style="display:inline-block;padding:10px 18px;background:#3D95CE;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;font-size:13px;">Pay ${formatPrice(order.totalCents)} with Venmo</a>
+      </div>
+    </div>
+    <p style="font-size:12px;color:#7c8699;">Use whichever method works best. Include your order reference in the payment note; the Venmo link pre-fills the amount and reference.</p>`;
+}
+
+export async function sendOrderConfirmation(order: OrderWithItems) {
   const body = `
     <p>Thank you for your order. We've reserved your items and are awaiting payment.</p>
     <p style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 16px;">
       Order reference: <strong style="color:#f4f6fb;">${order.reference}</strong>
     </p>
-    ${payInstructions}
+    ${paymentOptions(order)}
     <p style="color:#7c8699;font-size:13px;">Include your order reference <strong>${order.reference}</strong> in the payment note so we can match your payment quickly. Orders are processed once payment is confirmed.</p>
     ${itemsTable(order)}
     ${button("View your order", `${SITE_URL}/account`)}
@@ -175,7 +183,8 @@ export async function sendAdminNewOrder(order: OrderWithItems) {
     <p style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 16px;">
       Reference: <strong style="color:#f4f6fb;">${order.reference}</strong><br/>
       Customer: ${order.shippingAddress.fullName} (${order.email})<br/>
-      Method: ${order.paymentMethod.toUpperCase()}
+      Preferred method: ${order.paymentMethod.toUpperCase()}<br/>
+      Available methods: Zelle or Venmo
     </p>
     ${itemsTable(order)}
     ${button("Open admin dashboard", `${SITE_URL}/admin`)}

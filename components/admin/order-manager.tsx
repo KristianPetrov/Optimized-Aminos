@@ -59,7 +59,7 @@ export function OrderManager({ order }: { order: AdminOrder }) {
         </div>
         <div className="flex items-center gap-4">
           <span className="text-xs uppercase tracking-wider text-mist">
-            {order.paymentMethod}
+            Preferred: {order.paymentMethod}
           </span>
           <OrderStatusBadge status={order.status} />
           <span className="text-sm font-semibold text-foam">

@@ -257,11 +257,11 @@ export default async function AdminAnalyticsPage(
             </h2>
             <ul className="mt-4 space-y-2.5 text-sm">
               <li className="flex items-center justify-between">
-                <span className="text-mist">Zelle orders</span>
+                <span className="text-mist">Preferred Zelle</span>
                 <span className="font-semibold text-foam">{zelleCount}</span>
               </li>
               <li className="flex items-center justify-between">
-                <span className="text-mist">Venmo orders</span>
+                <span className="text-mist">Preferred Venmo</span>
                 <span className="font-semibold text-foam">{venmoCount}</span>
               </li>
               <li className="flex items-center justify-between">

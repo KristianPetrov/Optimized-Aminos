@@ -45,8 +45,6 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
   const zelle =
     process.env.NEXT_PUBLIC_ZELLE_RECIPIENT || "payments@optimizedaminos.co";
   const venmo = process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos";
-  const isVenmo = order.paymentMethod === "venmo";
-  const payTo = isVenmo ? formatVenmoHandle(venmo) : zelle;
   const venmoLink = buildVenmoLink(venmo, order.totalCents, order.reference);
   const trackingUrl = getTrackingUrl(order.carrier, order.trackingNumber);
 
@@ -81,29 +79,42 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
             <strong className="text-foam">
               {formatPrice(order.totalCents)}
             </strong>{" "}
-            via <strong className="capitalize text-foam">{order.paymentMethod}</strong> to:
+            with either Zelle or Venmo. Use whichever method works best.
           </p>
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-line bg-ink/60 px-4 py-3">
-            <span className="font-mono text-base text-foam">{payTo}</span>
-            <Copy size={16} className="text-faint" />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-line bg-ink/60 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-foam">Zelle</span>
+                <Copy size={16} className="text-faint" />
+              </div>
+              <p className="mt-2 break-all font-mono text-base text-gold">
+                {zelle}
+              </p>
+            </div>
+            <div className="rounded-xl border border-line bg-ink/60 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-foam">Venmo</span>
+                <Copy size={16} className="text-faint" />
+              </div>
+              <p className="mt-2 font-mono text-base text-gold">
+                {formatVenmoHandle(venmo)}
+              </p>
+            </div>
           </div>
 
-          {isVenmo && (
-            <a
-              href={venmoLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#3D95CE] py-3.5 text-sm font-semibold text-white transition-transform hover:scale-[1.01]"
-            >
-              Pay {formatPrice(order.totalCents)} with Venmo
-              <ArrowUpRight size={16} />
-            </a>
-          )}
+          <a
+            href={venmoLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#3D95CE] py-3.5 text-sm font-semibold text-white transition-transform hover:scale-[1.01]"
+          >
+            Pay {formatPrice(order.totalCents)} with Venmo
+            <ArrowUpRight size={16} />
+          </a>
 
           <p className="mt-3 text-xs leading-relaxed text-mist">
-            {isVenmo
-              ? "The Venmo link pre-fills the amount and your order reference in the note."
-              : "Include your order reference in the payment note so we can match it quickly."}{" "}
+            Include your order reference in the payment note so we can match it
+            quickly. The Venmo link pre-fills the amount and reference.{" "}
             Your order reference is{" "}
             <strong className="text-gold">{order.reference}</strong>. Your order
             ships once payment is confirmed — we&apos;ll email you at every step.
