@@ -7,14 +7,21 @@ import { getTrackingUrl } from "./tracking";
 const apiKey = process.env.RESEND_API_KEY;
 const resend = apiKey ? new Resend(apiKey) : null;
 
-const FROM = process.env.EMAIL_FROM || "Optimized Aminos <orders@optimizedaminos.com>";
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-const ZELLE = process.env.NEXT_PUBLIC_ZELLE_RECIPIENT || "payments@optimizedaminos.com";
+const FROM = process.env.EMAIL_FROM || "Optimized Aminos <orders@optimizedaminos.co>";
+const AUTH_FROM =
+  process.env.AUTH_EMAIL_FROM || "Optimized Aminos <noreply@optimizedaminos.co>";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://optimizedaminos.co";
+const ZELLE = process.env.NEXT_PUBLIC_ZELLE_RECIPIENT || "payments@optimizedaminos.co";
 const VENMO = process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
-async function send(to: string, subject: string, html: string) {
+async function send(
+  to: string,
+  subject: string,
+  html: string,
+  from: string = FROM,
+) {
   if (!resend) {
     console.warn(
       `[email] RESEND_API_KEY not set — skipping email "${subject}" to ${to}`,
@@ -22,7 +29,7 @@ async function send(to: string, subject: string, html: string) {
     return;
   }
   try {
-    await resend.emails.send({ from: FROM, to, subject, html });
+    await resend.emails.send({ from, to, subject, html });
   } catch (err) {
     console.error(`[email] Failed to send "${subject}" to ${to}:`, err);
   }
@@ -174,4 +181,34 @@ export async function sendAdminNewOrder(order: OrderWithItems) {
     ${button("Open admin dashboard", `${SITE_URL}/admin`)}
   `;
   await send(adminEmail, `New order ${order.reference} — ${formatPrice(order.totalCents)}`, layout("New order received", body));
+}
+
+export async function sendEmailVerification(email: string, token: string) {
+  const verifyUrl = `${SITE_URL}/verify-email?token=${encodeURIComponent(token)}`;
+  const body = `
+    <p>Thanks for creating an Optimized Aminos account. Please confirm your email address to sign in and place orders.</p>
+    <p style="text-align:center;">${button("Verify email address", verifyUrl)}</p>
+    <p style="color:#7c8699;font-size:13px;">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
+  `;
+  await send(
+    email,
+    "Verify your Optimized Aminos email",
+    layout("Verify your email", body),
+    AUTH_FROM,
+  );
+}
+
+export async function sendPasswordReset(email: string, token: string) {
+  const resetUrl = `${SITE_URL}/reset-password?token=${encodeURIComponent(token)}`;
+  const body = `
+    <p>We received a request to reset the password for your Optimized Aminos account.</p>
+    <p style="text-align:center;">${button("Reset password", resetUrl)}</p>
+    <p style="color:#7c8699;font-size:13px;">This link expires in 1 hour. If you didn't request a reset, you can safely ignore this email.</p>
+  `;
+  await send(
+    email,
+    "Reset your Optimized Aminos password",
+    layout("Reset your password", body),
+    AUTH_FROM,
+  );
 }

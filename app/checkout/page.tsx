@@ -43,7 +43,7 @@ export default async function CheckoutPage() {
           defaultName={session?.user?.name ?? ""}
           zelleRecipient={
             process.env.NEXT_PUBLIC_ZELLE_RECIPIENT ||
-            "payments@optimizedaminos.com"
+            "payments@optimizedaminos.co"
           }
           venmoHandle={formatVenmoHandle(
             process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos",

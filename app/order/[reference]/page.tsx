@@ -43,7 +43,7 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
   const isGuestView = !isOwner && !isAdmin;
 
   const zelle =
-    process.env.NEXT_PUBLIC_ZELLE_RECIPIENT || "payments@optimizedaminos.com";
+    process.env.NEXT_PUBLIC_ZELLE_RECIPIENT || "payments@optimizedaminos.co";
   const venmo = process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos";
   const isVenmo = order.paymentMethod === "venmo";
   const payTo = isVenmo ? formatVenmoHandle(venmo) : zelle;

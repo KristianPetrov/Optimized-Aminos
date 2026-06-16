@@ -23,12 +23,31 @@ export const paymentMethodEnum = pgEnum("payment_method", ["zelle", "venmo"]);
 
 export const discountTypeEnum = pgEnum("discount_type", ["percent", "fixed"]);
 
+export const authTokenTypeEnum = pgEnum("auth_token_type", [
+  "email_verification",
+  "password_reset",
+]);
+
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name"),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   role: userRoleEnum("role").notNull().default("customer"),
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const authTokens = pgTable("auth_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  type: authTokenTypeEnum("type").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -140,6 +159,14 @@ export const orderItems = pgTable("order_items", {
 
 export const usersRelations = relations(users, ({ many }) => ({
   orders: many(orders),
+  authTokens: many(authTokens),
+}));
+
+export const authTokensRelations = relations(authTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [authTokens.userId],
+    references: [users.id],
+  }),
 }));
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({
@@ -177,6 +204,7 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
 }));
 
 export type User = typeof users.$inferSelect;
+export type AuthToken = typeof authTokens.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
 export type Order = typeof orders.$inferSelect;

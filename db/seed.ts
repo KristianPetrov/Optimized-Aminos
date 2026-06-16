@@ -294,10 +294,11 @@ async function main() {
         name: "Administrator",
         passwordHash,
         role: "admin",
+        emailVerifiedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: users.email,
-        set: { role: "admin", passwordHash },
+        set: { role: "admin", passwordHash, emailVerifiedAt: new Date() },
       });
     console.log(`Admin user ready: ${adminEmail}`);
   } else {

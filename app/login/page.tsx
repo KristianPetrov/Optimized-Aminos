@@ -7,8 +7,9 @@ export const metadata: Metadata = { title: "Sign In" };
 
 export default async function LoginPage(props: PageProps<"/login">) {
   const session = await auth();
-  const { redirectTo } = await props.searchParams;
+  const { redirectTo, reset } = await props.searchParams;
   const target = typeof redirectTo === "string" ? redirectTo : "/account";
+  const resetSuccess = reset === "success";
 
   if (session?.user) redirect(target);
 
@@ -23,7 +24,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
         </p>
       </div>
       <div className="mt-8 panel rounded-2xl p-7">
-        <LoginForm redirectTo={target} />
+        <LoginForm redirectTo={target} resetSuccess={resetSuccess} />
       </div>
     </div>
   );
