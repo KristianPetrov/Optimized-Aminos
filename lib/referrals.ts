@@ -4,14 +4,16 @@ import { db } from "@/db";
 import { referralCodes, referralPartners, type ReferralCode } from "@/db/schema";
 import { formatPrice } from "./format";
 
-export function normalizeCode(raw: string): string {
+export function normalizeCode (raw: string): string
+{
   return raw.trim().toUpperCase().replace(/\s+/g, "");
 }
 
-export function computeDiscountCents(
+export function computeDiscountCents (
   code: Pick<ReferralCode, "discountType" | "discountValue">,
   subtotalCents: number,
-): number {
+): number
+{
   const raw =
     code.discountType === "percent"
       ? Math.round((subtotalCents * code.discountValue) / 100)
@@ -19,26 +21,35 @@ export function computeDiscountCents(
   return Math.max(0, Math.min(raw, subtotalCents));
 }
 
-export function describeDiscount(
+export function describeDiscount (
   code: Pick<ReferralCode, "discountType" | "discountValue">,
-): string {
+): string
+{
   return code.discountType === "percent"
     ? `${code.discountValue}% off`
     : `${formatPrice(code.discountValue)} off`;
 }
 
 export type ReferralValidation =
-  | { ok: true; code: ReferralCode; discountCents: number }
+  | {
+      ok: true;
+      code: ReferralCode;
+      discountCents: number;
+      discountableSubtotalCents: number;
+      excludedSubtotalCents: number;
+    }
   | { ok: false; error: string };
 
 /**
  * Validates a referral code against a subtotal: the code and its partner must
  * be active and the subtotal must meet the code's minimum order amount.
  */
-export async function validateReferralCode(
+export async function validateReferralCode (
   rawCode: string,
   subtotalCents: number,
-): Promise<ReferralValidation> {
+  reconstitutionSolutionSubtotalCents = 0,
+): Promise<ReferralValidation>
+{
   const normalized = normalizeCode(rawCode);
   if (!normalized) {
     return { ok: false, error: "Enter a referral code." };
@@ -61,7 +72,19 @@ export async function validateReferralCode(
     return { ok: false, error: "That referral code isn't valid." };
   }
 
-  if (subtotalCents < match.code.minSubtotalCents) {
+  const excludedSubtotalCents = match.code.excludeReconstitutionSolution
+    ? Math.min(Math.max(reconstitutionSolutionSubtotalCents, 0), subtotalCents)
+    : 0;
+  const discountableSubtotalCents = subtotalCents - excludedSubtotalCents;
+
+  if (discountableSubtotalCents <= 0) {
+    return {
+      ok: false,
+      error: "This code doesn't apply to reconstitution solution.",
+    };
+  }
+
+  if (discountableSubtotalCents < match.code.minSubtotalCents) {
     return {
       ok: false,
       error: `This code requires a minimum order of ${formatPrice(match.code.minSubtotalCents)}.`,
@@ -71,6 +94,8 @@ export async function validateReferralCode(
   return {
     ok: true,
     code: match.code,
-    discountCents: computeDiscountCents(match.code, subtotalCents),
+    discountCents: computeDiscountCents(match.code, discountableSubtotalCents),
+    discountableSubtotalCents,
+    excludedSubtotalCents,
   };
 }

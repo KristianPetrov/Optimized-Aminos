@@ -1,15 +1,16 @@
 "use server";
 
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { referralPartners, referralCodes } from "@/db/schema";
+import { products, referralPartners, referralCodes } from "@/db/schema";
 import { auth } from "@/auth";
 import { normalizeCode, validateReferralCode } from "@/lib/referrals";
 import { formatPrice } from "@/lib/format";
 
-async function requireAdmin() {
+async function requireAdmin ()
+{
   const session = await auth();
   if (session?.user?.role !== "admin") {
     throw new Error("Unauthorized");
@@ -29,10 +30,11 @@ const partnerSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
-export async function createReferralPartner(
+export async function createReferralPartner (
   _prev: ReferralActionState,
   formData: FormData,
-): Promise<ReferralActionState> {
+): Promise<ReferralActionState>
+{
   await requireAdmin();
 
   const parsed = partnerSchema.safeParse({
@@ -55,10 +57,11 @@ export async function createReferralPartner(
   return { ok: true };
 }
 
-export async function toggleReferralPartner(
+export async function toggleReferralPartner (
   partnerId: string,
   active: boolean,
-): Promise<ReferralActionState> {
+): Promise<ReferralActionState>
+{
   await requireAdmin();
   await db
     .update(referralPartners)
@@ -78,12 +81,14 @@ const codeSchema = z.object({
   discountType: z.enum(["percent", "fixed"]),
   discountValue: z.coerce.number().positive("Discount must be greater than 0."),
   minOrderDollars: z.coerce.number().min(0).max(1000000).default(0),
+  excludeReconstitutionSolution: z.boolean(),
 });
 
-export async function createReferralCode(
+export async function createReferralCode (
   _prev: ReferralActionState,
   formData: FormData,
-): Promise<ReferralActionState> {
+): Promise<ReferralActionState>
+{
   await requireAdmin();
 
   const parsed = codeSchema.safeParse({
@@ -92,14 +97,22 @@ export async function createReferralCode(
     discountType: formData.get("discountType"),
     discountValue: formData.get("discountValue"),
     minOrderDollars: formData.get("minOrderDollars") || 0,
+    excludeReconstitutionSolution:
+      formData.get("excludeReconstitutionSolution") === "on",
   });
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
   }
 
-  const { partnerId, code, discountType, discountValue, minOrderDollars } =
-    parsed.data;
+  const {
+    partnerId,
+    code,
+    discountType,
+    discountValue,
+    minOrderDollars,
+    excludeReconstitutionSolution,
+  } = parsed.data;
 
   if (discountType === "percent" && (discountValue < 1 || discountValue > 100)) {
     return { error: "Percent discount must be between 1 and 100." };
@@ -125,16 +138,18 @@ export async function createReferralCode(
         ? Math.round(discountValue)
         : Math.round(discountValue * 100),
     minSubtotalCents: Math.round(minOrderDollars * 100),
+    excludeReconstitutionSolution,
   });
 
   revalidatePath("/admin/referrals");
   return { ok: true };
 }
 
-export async function toggleReferralCode(
+export async function toggleReferralCode (
   codeId: string,
   active: boolean,
-): Promise<ReferralActionState> {
+): Promise<ReferralActionState>
+{
   await requireAdmin();
   await db
     .update(referralCodes)
@@ -144,25 +159,87 @@ export async function toggleReferralCode(
   return { ok: true };
 }
 
+export async function toggleReferralCodeReconstitutionExclusion (
+  codeId: string,
+  excludeReconstitutionSolution: boolean,
+): Promise<ReferralActionState>
+{
+  await requireAdmin();
+  await db
+    .update(referralCodes)
+    .set({ excludeReconstitutionSolution })
+    .where(eq(referralCodes.id, codeId));
+  revalidatePath("/admin/referrals");
+  return { ok: true };
+}
+
 export type ApplyCodeResult =
   | { ok: true; code: string; discountCents: number; description: string }
   | { ok: false; error: string };
 
+const referralPreviewItemSchema = z.object({
+  slug: z.string().min(1),
+  quantity: z.number().int().min(1).max(99),
+});
+
+const referralPreviewSchema = z.array(referralPreviewItemSchema).min(1);
+
 /** Public action used at checkout to preview a referral code's discount. */
-export async function applyReferralCode(
+export async function applyReferralCode (
   rawCode: string,
-  subtotalCents: number,
-): Promise<ApplyCodeResult> {
-  const result = await validateReferralCode(rawCode, subtotalCents);
+  items: z.infer<typeof referralPreviewSchema>,
+): Promise<ApplyCodeResult>
+{
+  const parsed = referralPreviewSchema.safeParse(items);
+  if (!parsed.success) {
+    return { ok: false, error: "Your cart is empty." };
+  }
+
+  const slugs = parsed.data.map((item) => item.slug);
+  const dbProducts = await db
+    .select()
+    .from(products)
+    .where(inArray(products.slug, slugs));
+  const bySlug = new Map(dbProducts.map((product) => [product.slug, product]));
+
+  let subtotalCents = 0;
+  let reconstitutionSolutionSubtotalCents = 0;
+
+  for (const item of parsed.data) {
+    const product = bySlug.get(item.slug);
+    if (!product || !product.active) {
+      return {
+        ok: false,
+        error: "An item in your cart is no longer available.",
+      };
+    }
+
+    const lineSubtotalCents = product.priceCents * item.quantity;
+    subtotalCents += lineSubtotalCents;
+    if (product.isReconstitutionSolution) {
+      reconstitutionSolutionSubtotalCents += lineSubtotalCents;
+    }
+  }
+
+  const result = await validateReferralCode(
+    rawCode,
+    subtotalCents,
+    reconstitutionSolutionSubtotalCents,
+  );
   if (!result.ok) return result;
+
+  const excludesReconstitutionSolution =
+    result.code.excludeReconstitutionSolution &&
+    result.excludedSubtotalCents > 0;
 
   return {
     ok: true,
     code: result.code.code,
     discountCents: result.discountCents,
     description:
-      result.code.discountType === "percent"
+      (result.code.discountType === "percent"
         ? `${result.code.discountValue}% off`
-        : `${formatPrice(result.code.discountValue)} off`,
+        : `${formatPrice(result.code.discountValue)} off`) +
+      (excludesReconstitutionSolution ? " eligible items" : ""),
   };
 }

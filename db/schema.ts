@@ -1,13 +1,14 @@
-import {
-  pgTable,
-  text,
-  timestamp,
-  integer,
-  pgEnum,
-  uuid,
-  boolean,
-  jsonb,
-} from "drizzle-orm/pg-core";
+import
+  {
+    pgTable,
+    text,
+    timestamp,
+    integer,
+    pgEnum,
+    uuid,
+    boolean,
+    jsonb,
+  } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export const userRoleEnum = pgEnum("user_role", ["customer", "admin"]);
@@ -66,6 +67,9 @@ export const products = pgTable("products", {
   image: text("image").notNull(),
   inventory: integer("inventory").notNull().default(0),
   featured: boolean("featured").notNull().default(false),
+  isReconstitutionSolution: boolean("is_reconstitution_solution")
+    .notNull()
+    .default(false),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -93,6 +97,9 @@ export const referralCodes = pgTable("referral_codes", {
   // Percent: whole number 1-100. Fixed: discount amount in cents.
   discountValue: integer("discount_value").notNull(),
   minSubtotalCents: integer("min_subtotal_cents").notNull().default(0),
+  excludeReconstitutionSolution: boolean("exclude_reconstitution_solution")
+    .notNull()
+    .default(false),
   active: boolean("active").notNull().default(true),
   usedCount: integer("used_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true })

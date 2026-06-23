@@ -143,6 +143,7 @@ const productUpdateSchema = z.object({
   priceDollars: z.coerce.number().min(0).max(100000),
   active: z.boolean(),
   featured: z.boolean(),
+  isReconstitutionSolution: z.boolean(),
 });
 
 export async function updateProductFull(
@@ -157,6 +158,8 @@ export async function updateProductFull(
     priceDollars: formData.get("priceDollars"),
     active: formData.get("active") === "on",
     featured: formData.get("featured") === "on",
+    isReconstitutionSolution:
+      formData.get("isReconstitutionSolution") === "on",
   });
 
   if (!parsed.success) {
@@ -170,6 +173,7 @@ export async function updateProductFull(
       priceCents: Math.round(parsed.data.priceDollars * 100),
       active: parsed.data.active,
       featured: parsed.data.featured,
+      isReconstitutionSolution: parsed.data.isReconstitutionSolution,
     })
     .where(eq(products.id, parsed.data.productId));
 

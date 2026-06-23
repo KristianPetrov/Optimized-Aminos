@@ -46,9 +46,10 @@ export type PlaceOrderResult =
   | { ok: true; reference: string; email: string }
   | { ok: false; error: string };
 
-export async function placeOrder(
+export async function placeOrder (
   input: PlaceOrderInput,
-): Promise<PlaceOrderResult> {
+): Promise<PlaceOrderResult>
+{
   // Guest checkout is allowed: attach the user id when signed in, otherwise
   // the order is tracked by its reference + email.
   const session = await auth();
@@ -90,7 +91,9 @@ export async function placeOrder(
     image: string;
     unitPriceCents: number;
     quantity: number;
+    isReconstitutionSolution: boolean;
   }[] = [];
+  let reconstitutionSolutionSubtotalCents = 0;
 
   for (const item of items) {
     const product = bySlug.get(item.slug);
@@ -103,7 +106,11 @@ export async function placeOrder(
         error: `Only ${product.inventory} of ${product.name} remain in stock.`,
       };
     }
-    subtotalCents += product.priceCents * item.quantity;
+    const lineSubtotalCents = product.priceCents * item.quantity;
+    subtotalCents += lineSubtotalCents;
+    if (product.isReconstitutionSolution) {
+      reconstitutionSolutionSubtotalCents += lineSubtotalCents;
+    }
     lineItems.push({
       productId: product.id,
       name: product.name,
@@ -111,6 +118,7 @@ export async function placeOrder(
       image: product.image,
       unitPriceCents: product.priceCents,
       quantity: item.quantity,
+      isReconstitutionSolution: product.isReconstitutionSolution,
     });
   }
 
@@ -119,7 +127,11 @@ export async function placeOrder(
   let appliedCodeId: string | null = null;
   let appliedCode: string | null = null;
   if (referralCode?.trim()) {
-    const validation = await validateReferralCode(referralCode, subtotalCents);
+    const validation = await validateReferralCode(
+      referralCode,
+      subtotalCents,
+      reconstitutionSolutionSubtotalCents,
+    );
     if (!validation.ok) {
       return { ok: false, error: validation.error };
     }
@@ -206,10 +218,11 @@ export async function placeOrder(
 
 export type LookupState = { error?: string } | null;
 
-export async function lookupOrder(
+export async function lookupOrder (
   _prev: LookupState,
   formData: FormData,
-): Promise<LookupState> {
+): Promise<LookupState>
+{
   const reference = String(formData.get("reference") ?? "")
     .trim()
     .toUpperCase();

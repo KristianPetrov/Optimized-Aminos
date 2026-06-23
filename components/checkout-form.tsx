@@ -9,10 +9,11 @@ import { useCart } from "./cart-provider";
 import { placeOrder } from "@/lib/actions/orders";
 import { applyReferralCode } from "@/lib/actions/referrals";
 import { formatPrice } from "@/lib/format";
-import {
-  shippingOptions,
-  type ShippingOptionId,
-} from "@/lib/shipping";
+import
+  {
+    shippingOptions,
+    type ShippingOptionId,
+  } from "@/lib/shipping";
 
 type PaymentMethod = "zelle" | "venmo";
 
@@ -22,7 +23,7 @@ type AppliedCode = {
   description: string;
 };
 
-export function CheckoutForm({
+export function CheckoutForm ({
   defaultEmail,
   defaultName,
   zelleRecipient,
@@ -32,7 +33,8 @@ export function CheckoutForm({
   defaultName: string;
   zelleRecipient: string;
   venmoHandle: string;
-}) {
+})
+{
   const { items, subtotalCents, clear } = useCart();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -52,13 +54,19 @@ export function CheckoutForm({
     ? Math.min(applied.discountCents, subtotalCents)
     : 0;
   const totalCents = subtotalCents - discountCents + shippingCents;
+  const appliedCode = applied?.code;
 
-  // Re-validate when the cart total changes so percent discounts and
+  // Re-validate when the cart changes so percent discounts and
   // minimum-order requirements stay accurate.
-  useEffect(() => {
-    if (!applied) return;
+  useEffect(() =>
+  {
+    if (!appliedCode) return;
     let stale = false;
-    applyReferralCode(applied.code, subtotalCents).then((result) => {
+    applyReferralCode(
+      appliedCode,
+      items.map((item) => ({ slug: item.slug, quantity: item.quantity })),
+    ).then((result) =>
+    {
       if (stale) return;
       if (result.ok) {
         setApplied(result);
@@ -67,18 +75,23 @@ export function CheckoutForm({
         setCodeError(result.error);
       }
     });
-    return () => {
+    return () =>
+    {
       stale = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subtotalCents]);
+  }, [items, appliedCode]);
 
-  function handleApplyCode() {
+  function handleApplyCode ()
+  {
     const code = codeInput.trim();
     if (!code) return;
     setCodeError(null);
-    startCodeTransition(async () => {
-      const result = await applyReferralCode(code, subtotalCents);
+    startCodeTransition(async () =>
+    {
+      const result = await applyReferralCode(
+        code,
+        items.map((item) => ({ slug: item.slug, quantity: item.quantity })),
+      );
       if (result.ok) {
         setApplied(result);
         setCodeInput("");
@@ -88,7 +101,8 @@ export function CheckoutForm({
     });
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit (e: React.FormEvent<HTMLFormElement>)
+  {
     e.preventDefault();
     setError(null);
     const form = e.currentTarget;
@@ -118,7 +132,8 @@ export function CheckoutForm({
       return;
     }
 
-    startTransition(async () => {
+    startTransition(async () =>
+    {
       const result = await placeOrder(payload);
       if (result.ok) {
         clear();
@@ -206,22 +221,20 @@ export function CheckoutForm({
                 type="button"
                 key={option.id}
                 onClick={() => setShippingMethod(option.id)}
-                className={`rounded-xl border px-4 py-4 text-left transition-colors ${
-                  shippingMethod === option.id
+                className={`rounded-xl border px-4 py-4 text-left transition-colors ${shippingMethod === option.id
                     ? "border-gold/60 bg-gold/10"
                     : "border-line bg-ink/40 hover:border-gold/30"
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <span className="font-semibold text-foam">
                     {option.label}
                   </span>
                   <span
-                    className={`h-4 w-4 rounded-full border ${
-                      shippingMethod === option.id
+                    className={`h-4 w-4 rounded-full border ${shippingMethod === option.id
                         ? "border-gold bg-gold"
                         : "border-faint"
-                    }`}
+                      }`}
                   />
                 </div>
                 <p className="mt-1 text-sm text-gold">
@@ -247,18 +260,16 @@ export function CheckoutForm({
                 type="button"
                 key={m}
                 onClick={() => setMethod(m)}
-                className={`rounded-xl border px-4 py-4 text-left transition-colors ${
-                  method === m
+                className={`rounded-xl border px-4 py-4 text-left transition-colors ${method === m
                     ? "border-gold/60 bg-gold/10"
                     : "border-line bg-ink/40 hover:border-gold/30"
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-semibold capitalize text-foam">{m}</span>
                   <span
-                    className={`h-4 w-4 rounded-full border ${
-                      method === m ? "border-gold bg-gold" : "border-faint"
-                    }`}
+                    className={`h-4 w-4 rounded-full border ${method === m ? "border-gold bg-gold" : "border-faint"
+                      }`}
                   />
                 </div>
                 <p className="mt-1 text-xs text-mist">
@@ -319,7 +330,8 @@ export function CheckoutForm({
               <div className="flex gap-2">
                 <input
                   value={codeInput}
-                  onChange={(e) => {
+                  onChange={(e) =>
+                  {
                     setCodeInput(e.target.value.toUpperCase());
                     setCodeError(null);
                   }}

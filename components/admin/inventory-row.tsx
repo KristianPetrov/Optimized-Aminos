@@ -80,7 +80,7 @@ export function InventoryRow({ product }: { product: Product }) {
         />
       </label>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-1.5 text-xs text-mist">
           <input
             type="checkbox"
@@ -98,6 +98,15 @@ export function InventoryRow({ product }: { product: Product }) {
             className="h-4 w-4 accent-[#e8c879]"
           />
           Featured
+        </label>
+        <label className="flex items-center gap-1.5 text-xs text-mist">
+          <input
+            type="checkbox"
+            name="isReconstitutionSolution"
+            defaultChecked={product.isReconstitutionSolution}
+            className="h-4 w-4 accent-[#e8c879]"
+          />
+          Recon solution
         </label>
       </div>
 

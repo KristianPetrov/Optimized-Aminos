@@ -1,0 +1,2 @@
+ALTER TABLE "products" ADD COLUMN "is_reconstitution_solution" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "referral_codes" ADD COLUMN "exclude_reconstitution_solution" boolean DEFAULT false NOT NULL;

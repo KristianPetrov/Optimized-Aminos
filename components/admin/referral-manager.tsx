@@ -1,23 +1,26 @@
 "use client";
 
 import { useState, useTransition, useActionState, useEffect, useRef } from "react";
-import {
-  ChevronDown,
-  Plus,
-  Tag,
-  AlertCircle,
-  Power,
-  UserPlus,
-} from "lucide-react";
+import
+  {
+    ChevronDown,
+    Plus,
+    Tag,
+    AlertCircle,
+    Power,
+    UserPlus,
+  } from "lucide-react";
 import type { ReferralPartner } from "@/db/schema";
 import type { ReferralCodeWithStats } from "@/lib/data";
-import {
-  createReferralPartner,
-  createReferralCode,
-  toggleReferralPartner,
-  toggleReferralCode,
-  type ReferralActionState,
-} from "@/lib/actions/referrals";
+import
+  {
+    createReferralPartner,
+    createReferralCode,
+    toggleReferralPartner,
+    toggleReferralCode,
+    toggleReferralCodeReconstitutionExclusion,
+    type ReferralActionState,
+  } from "@/lib/actions/referrals";
 import { formatPrice, formatDate } from "@/lib/format";
 
 type PartnerWithCodes = ReferralPartner & { codes: ReferralCodeWithStats[] };
@@ -26,7 +29,8 @@ const inputClass =
   "w-full rounded-lg border border-line bg-ink/60 px-3 py-2.5 text-sm text-foam placeholder:text-faint outline-none transition-colors focus:border-gold/50";
 const labelClass = "mb-1.5 block text-xs text-mist";
 
-export function NewPartnerForm() {
+export function NewPartnerForm ()
+{
   const [open, setOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState<ReferralActionState, FormData>(
@@ -34,9 +38,11 @@ export function NewPartnerForm() {
     null,
   );
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (state?.ok) {
       formRef.current?.reset();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- close form after server action success
       setOpen(false);
     }
   }, [state]);
@@ -109,7 +115,8 @@ export function NewPartnerForm() {
   );
 }
 
-export function PartnerCard({ partner }: { partner: PartnerWithCodes }) {
+export function PartnerCard ({ partner }: { partner: PartnerWithCodes })
+{
   const [expanded, setExpanded] = useState(true);
   const [isPending, startTransition] = useTransition();
 
@@ -118,9 +125,8 @@ export function PartnerCard({ partner }: { partner: PartnerWithCodes }) {
 
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-line bg-ink-800/50 ${
-        !partner.active ? "opacity-60" : ""
-      }`}
+      className={`overflow-hidden rounded-2xl border border-line bg-ink-800/50 ${!partner.active ? "opacity-60" : ""
+        }`}
     >
       <button
         onClick={() => setExpanded((v) => !v)}
@@ -147,11 +153,10 @@ export function PartnerCard({ partner }: { partner: PartnerWithCodes }) {
             {formatPrice(referredRevenue)}
           </span>
           <span
-            className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider ${
-              partner.active
+            className={`rounded-full px-2.5 py-1 text-[11px] font-medium uppercase tracking-wider ${partner.active
                 ? "bg-emerald-400/10 text-emerald-300"
                 : "bg-red-400/10 text-red-300"
-            }`}
+              }`}
           >
             {partner.active ? "Active" : "Inactive"}
           </span>
@@ -182,15 +187,15 @@ export function PartnerCard({ partner }: { partner: PartnerWithCodes }) {
             <button
               disabled={isPending}
               onClick={() =>
-                startTransition(() => {
+                startTransition(() =>
+                {
                   toggleReferralPartner(partner.id, !partner.active);
                 })
               }
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors disabled:opacity-60 ${
-                partner.active
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs transition-colors disabled:opacity-60 ${partner.active
                   ? "border-red-500/30 text-red-300 hover:bg-red-500/10"
                   : "border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10"
-              }`}
+                }`}
             >
               <Power size={13} />
               {partner.active ? "Deactivate partner" : "Reactivate partner"}
@@ -202,7 +207,8 @@ export function PartnerCard({ partner }: { partner: PartnerWithCodes }) {
   );
 }
 
-function CodeRow({ code }: { code: ReferralCodeWithStats }) {
+function CodeRow ({ code }: { code: ReferralCodeWithStats })
+{
   const [isPending, startTransition] = useTransition();
 
   const discountLabel =
@@ -212,9 +218,8 @@ function CodeRow({ code }: { code: ReferralCodeWithStats }) {
 
   return (
     <li
-      className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-ink/40 px-4 py-3 ${
-        !code.active ? "opacity-60" : ""
-      }`}
+      className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-ink/40 px-4 py-3 ${!code.active ? "opacity-60" : ""
+        }`}
     >
       <div className="flex items-center gap-3">
         <Tag size={15} className="text-gold" />
@@ -224,6 +229,8 @@ function CodeRow({ code }: { code: ReferralCodeWithStats }) {
             {discountLabel}
             {code.minSubtotalCents > 0 &&
               ` · min order ${formatPrice(code.minSubtotalCents)}`}
+            {code.excludeReconstitutionSolution &&
+              " · excludes reconstitution solution"}
           </p>
         </div>
       </div>
@@ -240,15 +247,35 @@ function CodeRow({ code }: { code: ReferralCodeWithStats }) {
         <button
           disabled={isPending}
           onClick={() =>
-            startTransition(() => {
+            startTransition(() =>
+            {
+              toggleReferralCodeReconstitutionExclusion(
+                code.id,
+                !code.excludeReconstitutionSolution,
+              );
+            })
+          }
+          aria-pressed={code.excludeReconstitutionSolution}
+          aria-label="Toggle reconstitution solution eligibility"
+          className={`rounded-full px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors disabled:opacity-60 ${code.excludeReconstitutionSolution
+              ? "bg-amber-400/10 text-amber-300 hover:bg-white/10 hover:text-mist"
+              : "bg-white/5 text-mist hover:bg-amber-400/10 hover:text-amber-300"
+            }`}
+        >
+          {code.excludeReconstitutionSolution ? "Recon off" : "Recon on"}
+        </button>
+        <button
+          disabled={isPending}
+          onClick={() =>
+            startTransition(() =>
+            {
               toggleReferralCode(code.id, !code.active);
             })
           }
-          className={`rounded-full px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors disabled:opacity-60 ${
-            code.active
+          className={`rounded-full px-3 py-1.5 text-[11px] font-medium uppercase tracking-wider transition-colors disabled:opacity-60 ${code.active
               ? "bg-emerald-400/10 text-emerald-300 hover:bg-red-400/10 hover:text-red-300"
               : "bg-red-400/10 text-red-300 hover:bg-emerald-400/10 hover:text-emerald-300"
-          }`}
+            }`}
         >
           {code.active ? "Active" : "Inactive"}
         </button>
@@ -257,7 +284,8 @@ function CodeRow({ code }: { code: ReferralCodeWithStats }) {
   );
 }
 
-function NewCodeForm({ partnerId }: { partnerId: string }) {
+function NewCodeForm ({ partnerId }: { partnerId: string })
+{
   const [open, setOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
@@ -266,9 +294,11 @@ function NewCodeForm({ partnerId }: { partnerId: string }) {
     null,
   );
 
-  useEffect(() => {
+  useEffect(() =>
+  {
     if (state?.ok) {
       formRef.current?.reset();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- close form after server action success
       setOpen(false);
     }
   }, [state]);
@@ -340,6 +370,16 @@ function NewCodeForm({ partnerId }: { partnerId: string }) {
           />
         </div>
       </div>
+      <label className="mt-3 flex items-start gap-2 rounded-lg border border-line bg-ink/40 px-3 py-2 sm:col-span-2 lg:col-span-4">
+        <input
+          type="checkbox"
+          name="excludeReconstitutionSolution"
+          className="mt-0.5 h-4 w-4 accent-[#e8c879]"
+        />
+        <span className="text-xs text-mist">
+          Exclude reconstitution solution
+        </span>
+      </label>
       {state?.error && (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-red-400">
           <AlertCircle size={13} /> {state.error}
