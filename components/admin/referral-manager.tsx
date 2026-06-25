@@ -10,7 +10,7 @@ import
     Power,
     UserPlus,
   } from "lucide-react";
-import type { ReferralPartner } from "@/db/schema";
+import type { DiscountType, Product, ReferralPartner } from "@/db/schema";
 import type { ReferralCodeWithStats } from "@/lib/data";
 import
   {
@@ -24,6 +24,10 @@ import
 import { formatPrice, formatDate } from "@/lib/format";
 
 type PartnerWithCodes = ReferralPartner & { codes: ReferralCodeWithStats[] };
+type ReferralProduct = Pick<
+  Product,
+  "id" | "name" | "category" | "priceCents"
+>;
 
 const inputClass =
   "w-full rounded-lg border border-line bg-ink/60 px-3 py-2.5 text-sm text-foam placeholder:text-faint outline-none transition-colors focus:border-gold/50";
@@ -115,7 +119,13 @@ export function NewPartnerForm ()
   );
 }
 
-export function PartnerCard ({ partner }: { partner: PartnerWithCodes })
+export function PartnerCard ({
+  partner,
+  products,
+}: {
+  partner: PartnerWithCodes;
+  products: ReferralProduct[];
+})
 {
   const [expanded, setExpanded] = useState(true);
   const [isPending, startTransition] = useTransition();
@@ -180,7 +190,7 @@ export function PartnerCard ({ partner }: { partner: PartnerWithCodes })
           )}
 
           <div className="mt-5">
-            <NewCodeForm partnerId={partner.id} />
+            <NewCodeForm partnerId={partner.id} products={products} />
           </div>
 
           <div className="mt-5 border-t border-line pt-4">
@@ -214,7 +224,17 @@ function CodeRow ({ code }: { code: ReferralCodeWithStats })
   const discountLabel =
     code.discountType === "percent"
       ? `${code.discountValue}% off`
-      : `${formatPrice(code.discountValue)} off`;
+      : code.discountType === "fixed"
+        ? `${formatPrice(code.discountValue)} off`
+        : `Set prices · ${code.productPrices.length} ${
+          code.productPrices.length === 1 ? "product" : "products"
+        }`;
+  const setPriceSummary = code.discountType === "set_price"
+    ? code.productPrices
+      .slice(0, 4)
+      .map((price) => `${price.productName} ${formatPrice(price.priceCents)}`)
+      .join(" · ")
+    : "";
 
   return (
     <li
@@ -232,6 +252,12 @@ function CodeRow ({ code }: { code: ReferralCodeWithStats })
             {code.excludeReconstitutionSolution &&
               " · excludes reconstitution solution"}
           </p>
+          {setPriceSummary && (
+            <p className="mt-1 text-xs text-faint">
+              {setPriceSummary}
+              {code.productPrices.length > 4 && " · more"}
+            </p>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-4">
@@ -284,15 +310,32 @@ function CodeRow ({ code }: { code: ReferralCodeWithStats })
   );
 }
 
-function NewCodeForm ({ partnerId }: { partnerId: string })
+function NewCodeForm ({
+  partnerId,
+  products,
+}: {
+  partnerId: string;
+  products: ReferralProduct[];
+})
 {
   const [open, setOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent");
+  const [discountType, setDiscountType] = useState<DiscountType>("percent");
   const [state, action, pending] = useActionState<ReferralActionState, FormData>(
     createReferralCode,
     null,
   );
+  const productsByCategory = products.reduce<Record<string, ReferralProduct[]>>(
+    (groups, product) =>
+    {
+      const group = groups[product.category] ?? [];
+      group.push(product);
+      groups[product.category] = group;
+      return groups;
+    },
+    {},
+  );
+  const productGroups = Object.entries(productsByCategory);
 
   useEffect(() =>
   {
@@ -300,6 +343,7 @@ function NewCodeForm ({ partnerId }: { partnerId: string })
       formRef.current?.reset();
       // eslint-disable-next-line react-hooks/set-state-in-effect -- close form after server action success
       setOpen(false);
+      setDiscountType("percent");
     }
   }, [state]);
 
@@ -336,28 +380,33 @@ function NewCodeForm ({ partnerId }: { partnerId: string })
           <select
             name="discountType"
             value={discountType}
-            onChange={(e) => setDiscountType(e.target.value as "percent" | "fixed")}
+            onChange={(e) => setDiscountType(e.target.value as DiscountType)}
             className={inputClass}
           >
             <option value="percent">Percent (%)</option>
             <option value="fixed">Fixed ($)</option>
+            <option value="set_price">Set prices</option>
           </select>
         </div>
-        <div>
-          <label className={labelClass}>
-            {discountType === "percent" ? "Percent off" : "Dollars off"}
-          </label>
-          <input
-            name="discountValue"
-            required
-            type="number"
-            min={discountType === "percent" ? 1 : 0.01}
-            max={discountType === "percent" ? 100 : undefined}
-            step={discountType === "percent" ? 1 : 0.01}
-            placeholder={discountType === "percent" ? "10" : "25.00"}
-            className={inputClass}
-          />
-        </div>
+        {discountType === "set_price" ? (
+          <input type="hidden" name="discountValue" value="0" />
+        ) : (
+          <div>
+            <label className={labelClass}>
+              {discountType === "percent" ? "Percent off" : "Dollars off"}
+            </label>
+            <input
+              name="discountValue"
+              required
+              type="number"
+              min={discountType === "percent" ? 1 : 0.01}
+              max={discountType === "percent" ? 100 : undefined}
+              step={discountType === "percent" ? 1 : 0.01}
+              placeholder={discountType === "percent" ? "10" : "25.00"}
+              className={inputClass}
+            />
+          </div>
+        )}
         <div>
           <label className={labelClass}>Min order $ (optional)</label>
           <input
@@ -370,6 +419,58 @@ function NewCodeForm ({ partnerId }: { partnerId: string })
           />
         </div>
       </div>
+      {discountType === "set_price" && (
+        <div className="mt-4 rounded-lg border border-line bg-ink/40 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <label className="text-xs font-medium uppercase tracking-wider text-mist">
+              Product set prices
+            </label>
+            <span className="text-[11px] text-faint">
+              Leave unchanged products blank
+            </span>
+          </div>
+          {productGroups.length === 0 ? (
+            <p className="mt-3 text-xs text-faint">
+              No products are available for set pricing.
+            </p>
+          ) : (
+            <div className="mt-3 max-h-80 space-y-4 overflow-y-auto pr-1">
+              {productGroups.map(([category, categoryProducts]) => (
+                <div key={category}>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gold">
+                    {category}
+                  </p>
+                  <div className="space-y-2">
+                    {categoryProducts.map((product) => (
+                      <label
+                        key={product.id}
+                        className="grid grid-cols-[1fr_110px] items-center gap-3 rounded-lg border border-line bg-ink/50 px-3 py-2"
+                      >
+                        <span>
+                          <span className="block text-xs font-medium text-foam">
+                            {product.name}
+                          </span>
+                          <span className="block text-[11px] text-faint">
+                            Current {formatPrice(product.priceCents)}
+                          </span>
+                        </span>
+                        <input
+                          name={`setPrice:${product.id}`}
+                          type="number"
+                          min={0.01}
+                          step={0.01}
+                          placeholder={(product.priceCents / 100).toFixed(2)}
+                          className="w-full rounded-md border border-line bg-ink/70 px-2 py-1.5 text-right text-xs text-foam placeholder:text-faint outline-none transition-colors focus:border-gold/50"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <label className="mt-3 flex items-start gap-2 rounded-lg border border-line bg-ink/40 px-3 py-2 sm:col-span-2 lg:col-span-4">
         <input
           type="checkbox"

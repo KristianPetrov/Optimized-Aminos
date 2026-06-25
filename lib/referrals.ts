@@ -1,7 +1,13 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { referralCodes, referralPartners, type ReferralCode } from "@/db/schema";
+import
+  {
+    referralCodeProductPrices,
+    referralCodes,
+    referralPartners,
+    type ReferralCode,
+  } from "@/db/schema";
 import { formatPrice } from "./format";
 
 export function normalizeCode (raw: string): string
@@ -14,10 +20,11 @@ export function computeDiscountCents (
   subtotalCents: number,
 ): number
 {
-  const raw =
-    code.discountType === "percent"
-      ? Math.round((subtotalCents * code.discountValue) / 100)
-      : code.discountValue;
+  const raw = code.discountType === "percent"
+    ? Math.round((subtotalCents * code.discountValue) / 100)
+    : code.discountType === "fixed"
+      ? code.discountValue
+      : 0;
   return Math.max(0, Math.min(raw, subtotalCents));
 }
 
@@ -25,10 +32,25 @@ export function describeDiscount (
   code: Pick<ReferralCode, "discountType" | "discountValue">,
 ): string
 {
-  return code.discountType === "percent"
-    ? `${code.discountValue}% off`
-    : `${formatPrice(code.discountValue)} off`;
+  if (code.discountType === "percent") return `${code.discountValue}% off`;
+  if (code.discountType === "fixed") {
+    return `${formatPrice(code.discountValue)} off`;
+  }
+  return "Set item prices";
 }
+
+export type ReferralPricedItem = {
+  productId: string;
+  unitPriceCents: number;
+  quantity: number;
+  isReconstitutionSolution: boolean;
+};
+
+export type ReferralPriceOverride = {
+  productId: string;
+  priceCents: number;
+  discountCents: number;
+};
 
 export type ReferralValidation =
   | {
@@ -37,8 +59,67 @@ export type ReferralValidation =
       discountCents: number;
       discountableSubtotalCents: number;
       excludedSubtotalCents: number;
+      priceOverrides: ReferralPriceOverride[];
     }
   | { ok: false; error: string };
+
+async function computeSetPriceDiscount (
+  codeId: string,
+  items: ReferralPricedItem[],
+  excludeReconstitutionSolution: boolean,
+): Promise<{
+  discountCents: number;
+  priceOverrides: ReferralPriceOverride[];
+}>
+{
+  const eligibleItems = excludeReconstitutionSolution
+    ? items.filter((item) => !item.isReconstitutionSolution)
+    : items;
+  const productIds = Array.from(
+    new Set(eligibleItems.map((item) => item.productId)),
+  );
+
+  if (productIds.length === 0) {
+    return { discountCents: 0, priceOverrides: [] };
+  }
+
+  const prices = await db
+    .select({
+      productId: referralCodeProductPrices.productId,
+      priceCents: referralCodeProductPrices.priceCents,
+    })
+    .from(referralCodeProductPrices)
+    .where(
+      and(
+        eq(referralCodeProductPrices.referralCodeId, codeId),
+        inArray(referralCodeProductPrices.productId, productIds),
+      ),
+    );
+
+  const priceByProductId = new Map(
+    prices.map((price) => [price.productId, price.priceCents]),
+  );
+  let discountCents = 0;
+  const priceOverrides: ReferralPriceOverride[] = [];
+
+  for (const item of eligibleItems) {
+    const setPriceCents = priceByProductId.get(item.productId);
+    if (setPriceCents === undefined) continue;
+
+    const lineDiscountCents =
+      Math.max(0, item.unitPriceCents - setPriceCents) * item.quantity;
+    if (lineDiscountCents <= 0) continue;
+
+    discountCents += lineDiscountCents;
+    priceOverrides.push({
+      productId: item.productId,
+      priceCents: setPriceCents,
+      discountCents: lineDiscountCents,
+    });
+  }
+
+  return { discountCents, priceOverrides };
+}
 
 /**
  * Validates a referral code against a subtotal: the code and its partner must
@@ -48,6 +129,7 @@ export async function validateReferralCode (
   rawCode: string,
   subtotalCents: number,
   reconstitutionSolutionSubtotalCents = 0,
+  pricedItems: ReferralPricedItem[] = [],
 ): Promise<ReferralValidation>
 {
   const normalized = normalizeCode(rawCode);
@@ -91,11 +173,46 @@ export async function validateReferralCode (
     };
   }
 
+  if (match.code.discountType === "set_price") {
+    if (pricedItems.length === 0) {
+      return {
+        ok: false,
+        error: "This code needs cart items before set prices can be applied.",
+      };
+    }
+
+    const setPriceResult = await computeSetPriceDiscount(
+      match.code.id,
+      pricedItems,
+      match.code.excludeReconstitutionSolution,
+    );
+
+    if (setPriceResult.discountCents <= 0) {
+      return {
+        ok: false,
+        error: "This code doesn't set prices for items in your cart.",
+      };
+    }
+
+    return {
+      ok: true,
+      code: match.code,
+      discountCents: Math.min(
+        setPriceResult.discountCents,
+        discountableSubtotalCents,
+      ),
+      discountableSubtotalCents,
+      excludedSubtotalCents,
+      priceOverrides: setPriceResult.priceOverrides,
+    };
+  }
+
   return {
     ok: true,
     code: match.code,
     discountCents: computeDiscountCents(match.code, discountableSubtotalCents),
     discountableSubtotalCents,
     excludedSubtotalCents,
+    priceOverrides: [],
   };
 }

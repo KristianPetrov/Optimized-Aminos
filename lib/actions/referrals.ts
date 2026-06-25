@@ -4,9 +4,21 @@ import { z } from "zod";
 import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { products, referralPartners, referralCodes } from "@/db/schema";
+import
+  {
+    products,
+    referralCodeProductPrices,
+    referralPartners,
+    referralCodes,
+  } from "@/db/schema";
 import { auth } from "@/auth";
-import { normalizeCode, validateReferralCode } from "@/lib/referrals";
+import
+  {
+    describeDiscount,
+    normalizeCode,
+    validateReferralCode,
+    type ReferralPricedItem,
+  } from "@/lib/referrals";
 import { formatPrice } from "@/lib/format";
 
 async function requireAdmin ()
@@ -78,11 +90,29 @@ const codeSchema = z.object({
     .min(3, "Code must be at least 3 characters.")
     .max(24, "Code must be 24 characters or fewer.")
     .regex(/^[a-zA-Z0-9-]+$/, "Use only letters, numbers, and dashes."),
-  discountType: z.enum(["percent", "fixed"]),
-  discountValue: z.coerce.number().positive("Discount must be greater than 0."),
+  discountType: z.enum(["percent", "fixed", "set_price"]),
+  discountValue: z.coerce.number().min(0, "Discount must be 0 or greater."),
   minOrderDollars: z.coerce.number().min(0).max(1000000).default(0),
   excludeReconstitutionSolution: z.boolean(),
 });
+
+const setPriceEntrySchema = z.object({
+  productId: z.string().uuid(),
+  priceDollars: z.coerce.number().positive().max(100000),
+});
+
+function parseSetPriceEntries (formData: FormData)
+{
+  const rawEntries = Array.from(formData.entries())
+    .filter(([key]) => key.startsWith("setPrice:"))
+    .map(([key, value]) => ({
+      productId: key.slice("setPrice:".length),
+      priceDollars: String(value).trim(),
+    }))
+    .filter((entry) => entry.priceDollars !== "");
+
+  return z.array(setPriceEntrySchema).safeParse(rawEntries);
+}
 
 export async function createReferralCode (
   _prev: ReferralActionState,
@@ -95,7 +125,7 @@ export async function createReferralCode (
     partnerId: formData.get("partnerId"),
     code: formData.get("code"),
     discountType: formData.get("discountType"),
-    discountValue: formData.get("discountValue"),
+    discountValue: formData.get("discountValue") || 0,
     minOrderDollars: formData.get("minOrderDollars") || 0,
     excludeReconstitutionSolution:
       formData.get("excludeReconstitutionSolution") === "on",
@@ -118,6 +148,24 @@ export async function createReferralCode (
     return { error: "Percent discount must be between 1 and 100." };
   }
 
+  if (discountType === "fixed" && discountValue <= 0) {
+    return { error: "Fixed discount must be greater than 0." };
+  }
+
+  const setPriceEntriesResult = parseSetPriceEntries(formData);
+  if (!setPriceEntriesResult.success) {
+    return { error: "Enter valid set prices." };
+  }
+  const setPriceEntries = Array.from(
+    new Map(
+      setPriceEntriesResult.data.map((entry) => [entry.productId, entry]),
+    ).values(),
+  );
+
+  if (discountType === "set_price" && setPriceEntries.length === 0) {
+    return { error: "Add at least one product set price." };
+  }
+
   const normalized = normalizeCode(code);
   const [existing] = await db
     .select({ id: referralCodes.id })
@@ -129,17 +177,67 @@ export async function createReferralCode (
     return { error: `Code ${normalized} already exists.` };
   }
 
-  await db.insert(referralCodes).values({
-    partnerId,
-    code: normalized,
-    discountType,
-    discountValue:
-      discountType === "percent"
-        ? Math.round(discountValue)
-        : Math.round(discountValue * 100),
-    minSubtotalCents: Math.round(minOrderDollars * 100),
-    excludeReconstitutionSolution,
-  });
+  if (discountType === "set_price") {
+    const productIds = Array.from(
+      new Set(setPriceEntries.map((entry) => entry.productId)),
+    );
+    const setPriceCentsByProductId = new Map(
+      setPriceEntries.map((entry) => [
+        entry.productId,
+        Math.round(entry.priceDollars * 100),
+      ]),
+    );
+    const matchingProducts = await db
+      .select({
+        id: products.id,
+        name: products.name,
+        priceCents: products.priceCents,
+      })
+      .from(products)
+      .where(inArray(products.id, productIds));
+
+    if (matchingProducts.length !== productIds.length) {
+      return { error: "One or more products for set pricing no longer exist." };
+    }
+
+    const nonDiscountedProduct = matchingProducts.find(
+      (product) =>
+        (setPriceCentsByProductId.get(product.id) ?? 0) >= product.priceCents,
+    );
+
+    if (nonDiscountedProduct) {
+      return {
+        error: `Set price for ${nonDiscountedProduct.name} must be below ${formatPrice(nonDiscountedProduct.priceCents)}.`,
+      };
+    }
+  }
+
+  const [insertedCode] = await db
+    .insert(referralCodes)
+    .values({
+      partnerId,
+      code: normalized,
+      discountType,
+      discountValue:
+        discountType === "percent"
+          ? Math.round(discountValue)
+          : discountType === "fixed"
+            ? Math.round(discountValue * 100)
+            : 0,
+      minSubtotalCents: Math.round(minOrderDollars * 100),
+      excludeReconstitutionSolution,
+    })
+    .returning({ id: referralCodes.id });
+
+  if (discountType === "set_price") {
+    await db.insert(referralCodeProductPrices).values(
+      setPriceEntries.map((entry) => ({
+        referralCodeId: insertedCode.id,
+        productId: entry.productId,
+        priceCents: Math.round(entry.priceDollars * 100),
+      })),
+    );
+  }
 
   revalidatePath("/admin/referrals");
   return { ok: true };
@@ -204,6 +302,7 @@ export async function applyReferralCode (
 
   let subtotalCents = 0;
   let reconstitutionSolutionSubtotalCents = 0;
+  const pricedItems: ReferralPricedItem[] = [];
 
   for (const item of parsed.data) {
     const product = bySlug.get(item.slug);
@@ -219,27 +318,39 @@ export async function applyReferralCode (
     if (product.isReconstitutionSolution) {
       reconstitutionSolutionSubtotalCents += lineSubtotalCents;
     }
+    pricedItems.push({
+      productId: product.id,
+      unitPriceCents: product.priceCents,
+      quantity: item.quantity,
+      isReconstitutionSolution: product.isReconstitutionSolution,
+    });
   }
 
   const result = await validateReferralCode(
     rawCode,
     subtotalCents,
     reconstitutionSolutionSubtotalCents,
+    pricedItems,
   );
   if (!result.ok) return result;
 
   const excludesReconstitutionSolution =
     result.code.excludeReconstitutionSolution &&
     result.excludedSubtotalCents > 0;
+  const description = result.code.discountType === "set_price"
+    ? `Set prices on ${result.priceOverrides.length} eligible ${
+      result.priceOverrides.length === 1 ? "item" : "items"
+    }`
+    : describeDiscount(result.code);
 
   return {
     ok: true,
     code: result.code.code,
     discountCents: result.discountCents,
     description:
-      (result.code.discountType === "percent"
-        ? `${result.code.discountValue}% off`
-        : `${formatPrice(result.code.discountValue)} off`) +
-      (excludesReconstitutionSolution ? " eligible items" : ""),
+      description +
+      (excludesReconstitutionSolution && result.code.discountType !== "set_price"
+        ? " eligible items"
+        : ""),
   };
 }

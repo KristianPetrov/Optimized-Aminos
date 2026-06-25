@@ -5,6 +5,7 @@ import
     timestamp,
     integer,
     pgEnum,
+    primaryKey,
     uuid,
     boolean,
     jsonb,
@@ -22,7 +23,11 @@ export const orderStatusEnum = pgEnum("order_status", [
 
 export const paymentMethodEnum = pgEnum("payment_method", ["zelle", "venmo"]);
 
-export const discountTypeEnum = pgEnum("discount_type", ["percent", "fixed"]);
+export const discountTypeEnum = pgEnum("discount_type", [
+  "percent",
+  "fixed",
+  "set_price",
+]);
 
 export const authTokenTypeEnum = pgEnum("auth_token_type", [
   "email_verification",
@@ -95,6 +100,7 @@ export const referralCodes = pgTable("referral_codes", {
   code: text("code").notNull().unique(),
   discountType: discountTypeEnum("discount_type").notNull(),
   // Percent: whole number 1-100. Fixed: discount amount in cents.
+  // Set-price codes keep this at 0 and use referralCodeProductPrices.
   discountValue: integer("discount_value").notNull(),
   minSubtotalCents: integer("min_subtotal_cents").notNull().default(0),
   excludeReconstitutionSolution: boolean("exclude_reconstitution_solution")
@@ -106,6 +112,27 @@ export const referralCodes = pgTable("referral_codes", {
     .notNull()
     .defaultNow(),
 });
+
+export const referralCodeProductPrices = pgTable(
+  "referral_code_product_prices",
+  {
+    referralCodeId: uuid("referral_code_id")
+      .notNull()
+      .references(() => referralCodes.id, { onDelete: "cascade" }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    priceCents: integer("price_cents").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.referralCodeId, table.productId],
+    }),
+  ],
+);
 
 type ShippingAddress = {
   fullName: string;
@@ -198,7 +225,22 @@ export const referralCodesRelations = relations(referralCodes, ({ one, many }) =
     references: [referralPartners.id],
   }),
   orders: many(orders),
+  productPrices: many(referralCodeProductPrices),
 }));
+
+export const referralCodeProductPricesRelations = relations(
+  referralCodeProductPrices,
+  ({ one }) => ({
+    code: one(referralCodes, {
+      fields: [referralCodeProductPrices.referralCodeId],
+      references: [referralCodes.id],
+    }),
+    product: one(products, {
+      fields: [referralCodeProductPrices.productId],
+      references: [products.id],
+    }),
+  }),
+);
 
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   order: one(orders, {
@@ -221,5 +263,7 @@ export type OrderStatus = (typeof orderStatusEnum.enumValues)[number];
 export type PaymentMethod = (typeof paymentMethodEnum.enumValues)[number];
 export type ReferralPartner = typeof referralPartners.$inferSelect;
 export type ReferralCode = typeof referralCodes.$inferSelect;
+export type ReferralCodeProductPrice =
+  typeof referralCodeProductPrices.$inferSelect;
 export type DiscountType = (typeof discountTypeEnum.enumValues)[number];
 export type { ShippingAddress };

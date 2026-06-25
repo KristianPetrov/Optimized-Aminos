@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getReferralPartnersWithCodes } from "@/lib/data";
+import { getAllProducts, getReferralPartnersWithCodes } from "@/lib/data";
 import { formatPrice } from "@/lib/format";
 import { NewPartnerForm, PartnerCard } from "@/components/admin/referral-manager";
 
@@ -9,10 +9,15 @@ export const metadata: Metadata = { title: "Admin · Referrals" };
 
 export default async function AdminReferralsPage() {
   let partners: Awaited<ReturnType<typeof getReferralPartnersWithCodes>> = [];
+  let products: Awaited<ReturnType<typeof getAllProducts>> = [];
   try {
-    partners = await getReferralPartnersWithCodes();
+    [partners, products] = await Promise.all([
+      getReferralPartnersWithCodes(),
+      getAllProducts(),
+    ]);
   } catch {
     partners = [];
+    products = [];
   }
 
   const allCodes = partners.flatMap((p) => p.codes);
@@ -57,7 +62,11 @@ export default async function AdminReferralsPage() {
           </div>
         ) : (
           partners.map((partner) => (
-            <PartnerCard key={partner.id} partner={partner} />
+            <PartnerCard
+              key={partner.id}
+              partner={partner}
+              products={products}
+            />
           ))
         )}
       </div>

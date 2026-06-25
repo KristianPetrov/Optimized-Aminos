@@ -29,6 +29,13 @@
       "when": 1782189907099,
       "tag": "0003_curved_zarda",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782349969300,
+      "tag": "0004_jittery_slyde",
+      "breakpoints": true
     }
   ]
 }

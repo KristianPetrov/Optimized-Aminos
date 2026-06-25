@@ -6,6 +6,7 @@ import {
   orderItems,
   referralPartners,
   referralCodes,
+  referralCodeProductPrices,
   type ReferralCode,
 } from "@/db/schema";
 import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
@@ -85,6 +86,14 @@ export type ReferralCodeWithStats = ReferralCode & {
   orderCount: number;
   revenueCents: number;
   discountGivenCents: number;
+  productPrices: {
+    productId: string;
+    productSlug: string;
+    productName: string;
+    productCategory: string;
+    catalogPriceCents: number;
+    priceCents: number;
+  }[];
 };
 
 export async function getReferralPartnersWithCodes() {
@@ -97,6 +106,19 @@ export async function getReferralPartnersWithCodes() {
     .select()
     .from(referralCodes)
     .orderBy(desc(referralCodes.createdAt));
+  const productPrices = await db
+    .select({
+      referralCodeId: referralCodeProductPrices.referralCodeId,
+      productId: referralCodeProductPrices.productId,
+      productSlug: products.slug,
+      productName: products.name,
+      productCategory: products.category,
+      catalogPriceCents: products.priceCents,
+      priceCents: referralCodeProductPrices.priceCents,
+    })
+    .from(referralCodeProductPrices)
+    .innerJoin(products, eq(referralCodeProductPrices.productId, products.id))
+    .orderBy(products.category, products.name);
 
   // Aggregate confirmed usage (paid/shipped) per code.
   const usage = await db
@@ -116,6 +138,12 @@ export async function getReferralPartnersWithCodes() {
     .groupBy(orders.referralCodeId);
 
   const usageByCode = new Map(usage.map((u) => [u.referralCodeId, u]));
+  const productPricesByCode = new Map<string, typeof productPrices>();
+  for (const productPrice of productPrices) {
+    const current = productPricesByCode.get(productPrice.referralCodeId) ?? [];
+    current.push(productPrice);
+    productPricesByCode.set(productPrice.referralCodeId, current);
+  }
 
   const codesWithStats: ReferralCodeWithStats[] = codes.map((c) => {
     const u = usageByCode.get(c.id);
@@ -124,6 +152,7 @@ export async function getReferralPartnersWithCodes() {
       orderCount: u?.orderCount ?? 0,
       revenueCents: u?.revenueCents ?? 0,
       discountGivenCents: u?.discountGivenCents ?? 0,
+      productPrices: productPricesByCode.get(c.id) ?? [],
     };
   });
 

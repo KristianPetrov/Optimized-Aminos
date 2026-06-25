@@ -8,7 +8,11 @@ import { products, orders, orderItems, referralCodes } from "@/db/schema";
 import { auth } from "@/auth";
 import { generateOrderReference } from "@/lib/format";
 import { getOrderByReference } from "@/lib/data";
-import { validateReferralCode } from "@/lib/referrals";
+import
+  {
+    validateReferralCode,
+    type ReferralPricedItem,
+  } from "@/lib/referrals";
 import { sendOrderConfirmation, sendAdminNewOrder } from "@/lib/email";
 import { getShippingOption } from "@/lib/shipping";
 
@@ -93,6 +97,7 @@ export async function placeOrder (
     quantity: number;
     isReconstitutionSolution: boolean;
   }[] = [];
+  const pricedItems: ReferralPricedItem[] = [];
   let reconstitutionSolutionSubtotalCents = 0;
 
   for (const item of items) {
@@ -120,6 +125,12 @@ export async function placeOrder (
       quantity: item.quantity,
       isReconstitutionSolution: product.isReconstitutionSolution,
     });
+    pricedItems.push({
+      productId: product.id,
+      unitPriceCents: product.priceCents,
+      quantity: item.quantity,
+      isReconstitutionSolution: product.isReconstitutionSolution,
+    });
   }
 
   // Re-validate the referral code server-side against the real subtotal.
@@ -131,6 +142,7 @@ export async function placeOrder (
       referralCode,
       subtotalCents,
       reconstitutionSolutionSubtotalCents,
+      pricedItems,
     );
     if (!validation.ok) {
       return { ok: false, error: validation.error };

@@ -256,6 +256,42 @@ const catalog: Omit<NewProduct, "id" | "createdAt">[] = [
     image: "/products/mt-2-10mg.png",
     inventory: 32,
   },
+  {
+    slug: "repair-research-kit",
+    name: "Repair Research Kit",
+    shortDescription: "BPC-157 / TB-500 / GHK-Cu · Kit",
+    description:
+      "A bundled research kit for comparative repair and recovery studies, pairing BPC-157, TB-500, and GHK-Cu reference compounds in one catalog item.",
+    category: "Kits",
+    priceCents: 18000,
+    image: "/products/bpc-157-10mg-ghk-cu-10mg-tb-500-10mg.png",
+    inventory: 12,
+    featured: true,
+  },
+  {
+    slug: "metabolic-research-kit",
+    name: "Metabolic Research Kit",
+    shortDescription: "CJC-1295 / Ipamorelin / AOD-9604 · Kit",
+    description:
+      "A bundled research kit for metabolic pathway investigations, combining the CJC-1295 / Ipamorelin blend with AOD-9604 in a single catalog item.",
+    category: "Kits",
+    priceCents: 15000,
+    image: "/products/cjc-1295-10mg-ipamorelin-10mg.png",
+    inventory: 12,
+    featured: true,
+  },
+  {
+    slug: "longevity-research-kit",
+    name: "Longevity Research Kit",
+    shortDescription: "MOTS-c / SS-31 / NAD+ · Kit",
+    description:
+      "A bundled research kit for longevity and mitochondrial studies, grouping MOTS-c, SS-31, and NAD+ reference compounds in one catalog item.",
+    category: "Kits",
+    priceCents: 32500,
+    image: "/products/nad-1000mg.png",
+    inventory: 10,
+    featured: true,
+  },
 ];
 
 async function main() {

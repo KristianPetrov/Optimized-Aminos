@@ -56,7 +56,7 @@ export function CheckoutForm ({
   const totalCents = subtotalCents - discountCents + shippingCents;
   const appliedCode = applied?.code;
 
-  // Re-validate when the cart changes so percent discounts and
+  // Re-validate when the cart changes so discounts, set prices, and
   // minimum-order requirements stay accurate.
   useEffect(() =>
   {
