@@ -30,6 +30,9 @@ export function ResendVerificationForm({ email }: { email?: string }) {
         </div>
       )}
       {email && <input type="hidden" name="email" value={email} />}
+      {state?.error && (
+        <p className="text-center text-sm text-red-300">{state.error}</p>
+      )}
       {state?.success ? (
         <p className="text-center text-sm text-green-300">{state.success}</p>
       ) : (
