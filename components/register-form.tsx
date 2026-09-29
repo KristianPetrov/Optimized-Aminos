@@ -47,7 +47,17 @@ export function RegisterForm() {
       {state?.error && (
         <div className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-xs text-red-300">
           <AlertCircle size={15} className="mt-px shrink-0" />
-          {state.error}
+          <div>
+            <p>{state.error}</p>
+            {state.unverifiedEmail && (
+              <Link
+                href={`/verify-email/check?email=${encodeURIComponent(state.unverifiedEmail)}`}
+                className="mt-2 inline-block text-gold hover:underline"
+              >
+                Resend verification email
+              </Link>
+            )}
+          </div>
         </div>
       )}
 

@@ -73,7 +73,14 @@ export async function registerUser(
         existing[0].id,
         "email_verification",
       );
-      await sendEmailVerification(normalizedEmail, token);
+      const sent = await sendEmailVerification(normalizedEmail, token);
+      if (!sent.ok) {
+        return {
+          error:
+            "We couldn't send the verification email. Please try again in a few minutes.",
+          unverifiedEmail: normalizedEmail,
+        };
+      }
       redirect(
         `/verify-email/check?email=${encodeURIComponent(normalizedEmail)}`,
       );
@@ -93,7 +100,14 @@ export async function registerUser(
     .returning({ id: users.id });
 
   const token = await createAuthToken(user.id, "email_verification");
-  await sendEmailVerification(normalizedEmail, token);
+  const sent = await sendEmailVerification(normalizedEmail, token);
+  if (!sent.ok) {
+    return {
+      error:
+        "Your account was created, but we couldn't send the verification email. Please try again in a few minutes.",
+      unverifiedEmail: normalizedEmail,
+    };
+  }
 
   redirect(`/verify-email/check?email=${encodeURIComponent(normalizedEmail)}`);
 }
@@ -198,7 +212,13 @@ export async function requestPasswordReset(
 
   if (user) {
     const token = await createAuthToken(user.id, "password_reset");
-    await sendPasswordReset(normalizedEmail, token);
+    const sent = await sendPasswordReset(normalizedEmail, token);
+    if (!sent.ok) {
+      return {
+        error:
+          "We couldn't send the password reset email. Please try again in a few minutes.",
+      };
+    }
   }
 
   return {
@@ -281,7 +301,13 @@ export async function resendVerificationEmail(
 
   if (user && !user.emailVerifiedAt) {
     const token = await createAuthToken(user.id, "email_verification");
-    await sendEmailVerification(normalizedEmail, token);
+    const sent = await sendEmailVerification(normalizedEmail, token);
+    if (!sent.ok) {
+      return {
+        error:
+          "We couldn't send the verification email. Please try again in a few minutes.",
+      };
+    }
   }
 
   return {

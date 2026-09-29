@@ -5,9 +5,6 @@ import { buildVenmoLink, formatVenmoHandle } from "./payments";
 import { getTrackingUrl } from "./tracking";
 import { getShippingOptionLabel } from "./shipping";
 
-const apiKey = process.env.RESEND_API_KEY;
-const resend = apiKey ? new Resend(apiKey) : null;
-
 const FROM = process.env.EMAIL_FROM || "Optimized Aminos <orders@optimizedaminos.co>";
 const AUTH_FROM =
   process.env.AUTH_EMAIL_FROM || "Optimized Aminos <noreply@optimizedaminos.co>";
@@ -17,23 +14,38 @@ const VENMO = process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
+export type EmailSendResult = { ok: true } | { ok: false; reason: string };
+
+function getResend(): Resend | null {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return null;
+  return new Resend(apiKey);
+}
+
 async function send(
   to: string,
   subject: string,
   html: string,
   from: string = FROM,
-) {
+): Promise<EmailSendResult> {
+  const resend = getResend();
   if (!resend) {
-    console.warn(
-      `[email] RESEND_API_KEY not set — skipping email "${subject}" to ${to}`,
+    const reason = "RESEND_API_KEY is not set";
+    console.error(`[email] ${reason} — skipped "${subject}" to ${to}`);
+    return { ok: false, reason };
+  }
+
+  // The Resend SDK resolves API failures as `{ error }` instead of throwing.
+  const { data, error } = await resend.emails.send({ from, to, subject, html });
+  if (error || !data) {
+    const reason = error?.message ?? "Resend did not return an email id";
+    console.error(
+      `[email] Failed to send "${subject}" to ${to} from ${from}: ${error?.name ?? "unknown"} — ${reason}`,
     );
-    return;
+    return { ok: false, reason };
   }
-  try {
-    await resend.emails.send({ from, to, subject, html });
-  } catch (err) {
-    console.error(`[email] Failed to send "${subject}" to ${to}:`, err);
-  }
+
+  return { ok: true };
 }
 
 function layout(heading: string, body: string): string {
@@ -137,7 +149,7 @@ export async function sendOrderConfirmation(order: OrderWithItems) {
     ${itemsTable(order)}
     ${button("View your order", `${SITE_URL}/account`)}
   `;
-  await send(order.email, `Order ${order.reference} received — payment pending`, layout("Order received", body));
+  return send(order.email, `Order ${order.reference} received — payment pending`, layout("Order received", body));
 }
 
 export async function sendPaymentReceived(order: OrderWithItems) {
@@ -147,7 +159,7 @@ export async function sendPaymentReceived(order: OrderWithItems) {
     <p>We'll send another email with tracking details as soon as it ships.</p>
     ${button("View your order", `${SITE_URL}/account`)}
   `;
-  await send(order.email, `Payment confirmed for order ${order.reference}`, layout("Payment confirmed", body));
+  return send(order.email, `Payment confirmed for order ${order.reference}`, layout("Payment confirmed", body));
 }
 
 export async function sendOrderShipped(order: OrderWithItems) {
@@ -168,7 +180,7 @@ export async function sendOrderShipped(order: OrderWithItems) {
     ${itemsTable(order)}
     ${button("View your order", `${SITE_URL}/account`)}
   `;
-  await send(order.email, `Order ${order.reference} has shipped`, layout("Your order is on the way", body));
+  return send(order.email, `Order ${order.reference} has shipped`, layout("Your order is on the way", body));
 }
 
 export async function sendOrderCancelled(order: OrderWithItems) {
@@ -176,12 +188,14 @@ export async function sendOrderCancelled(order: OrderWithItems) {
     <p>Your order <strong style="color:#f4f6fb;">${order.reference}</strong> has been cancelled. If you believe this was a mistake or have questions, simply reply to this email.</p>
     ${itemsTable(order)}
   `;
-  await send(order.email, `Order ${order.reference} cancelled`, layout("Order cancelled", body));
+  return send(order.email, `Order ${order.reference} cancelled`, layout("Order cancelled", body));
 }
 
-export async function sendAdminNewOrder(order: OrderWithItems) {
+export async function sendAdminNewOrder(order: OrderWithItems): Promise<EmailSendResult> {
   const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL;
-  if (!adminEmail) return;
+  if (!adminEmail) {
+    return { ok: false, reason: "ADMIN_NOTIFICATION_EMAIL is not set" };
+  }
   const body = `
     <p>A new order has been placed and is awaiting payment.</p>
     <p style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px 16px;">
@@ -193,7 +207,7 @@ export async function sendAdminNewOrder(order: OrderWithItems) {
     ${itemsTable(order)}
     ${button("Open admin dashboard", `${SITE_URL}/admin`)}
   `;
-  await send(adminEmail, `New order ${order.reference} — ${formatPrice(order.totalCents)}`, layout("New order received", body));
+  return send(adminEmail, `New order ${order.reference} — ${formatPrice(order.totalCents)}`, layout("New order received", body));
 }
 
 export async function sendEmailVerification(email: string, token: string) {
@@ -203,7 +217,7 @@ export async function sendEmailVerification(email: string, token: string) {
     <p style="text-align:center;">${button("Verify email address", verifyUrl)}</p>
     <p style="color:#7c8699;font-size:13px;">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
   `;
-  await send(
+  return send(
     email,
     "Verify your Optimized Aminos email",
     layout("Verify your email", body),
@@ -218,7 +232,7 @@ export async function sendPasswordReset(email: string, token: string) {
     <p style="text-align:center;">${button("Reset password", resetUrl)}</p>
     <p style="color:#7c8699;font-size:13px;">This link expires in 1 hour. If you didn't request a reset, you can safely ignore this email.</p>
   `;
-  await send(
+  return send(
     email,
     "Reset your Optimized Aminos password",
     layout("Reset your password", body),
