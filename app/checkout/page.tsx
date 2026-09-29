@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { CheckoutForm } from "@/components/checkout-form";
-import { formatVenmoHandle } from "@/lib/payments";
+import {
+  formatVenmoHandle,
+  getVenmoHandle,
+  getZelleRecipient,
+} from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
 
@@ -41,13 +45,8 @@ export default async function CheckoutPage() {
         <CheckoutForm
           defaultEmail={session?.user?.email ?? ""}
           defaultName={session?.user?.name ?? ""}
-          zelleRecipient={
-            process.env.NEXT_PUBLIC_ZELLE_RECIPIENT ||
-            "payments@optimizedaminos.co"
-          }
-          venmoHandle={formatVenmoHandle(
-            process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos",
-          )}
+          zelleRecipient={getZelleRecipient()}
+          venmoHandle={formatVenmoHandle(getVenmoHandle())}
         />
       </div>
     </div>
