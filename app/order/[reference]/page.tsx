@@ -6,7 +6,12 @@ import { CheckCircle2, Copy, Truck, ArrowUpRight } from "lucide-react";
 import { auth } from "@/auth";
 import { getOrderByReference } from "@/lib/data";
 import { formatPrice, formatDate } from "@/lib/format";
-import { buildVenmoLink, formatVenmoHandle } from "@/lib/payments";
+import {
+  buildVenmoLink,
+  formatVenmoHandle,
+  getVenmoHandle,
+  getZelleRecipient,
+} from "@/lib/payments";
 import { getTrackingUrl } from "@/lib/tracking";
 import { getShippingOptionLabel } from "@/lib/shipping";
 import { OrderStatusBadge } from "@/components/order-status-badge";
@@ -43,9 +48,8 @@ export default async function OrderPage(props: PageProps<"/order/[reference]">) 
 
   const isGuestView = !isOwner && !isAdmin;
 
-  const zelle =
-    process.env.NEXT_PUBLIC_ZELLE_RECIPIENT || "payments@optimizedaminos.co";
-  const venmo = process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos";
+  const zelle = getZelleRecipient();
+  const venmo = getVenmoHandle();
   const venmoLink = buildVenmoLink(venmo, order.totalCents, order.reference);
   const trackingUrl = getTrackingUrl(order.carrier, order.trackingNumber);
   const shippingLabel = getShippingOptionLabel(

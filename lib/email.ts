@@ -1,7 +1,12 @@
 import { Resend } from "resend";
 import type { Order, OrderItem } from "@/db/schema";
 import { formatPrice } from "./format";
-import { buildVenmoLink, formatVenmoHandle } from "./payments";
+import {
+  buildVenmoLink,
+  formatVenmoHandle,
+  getVenmoHandle,
+  getZelleRecipient,
+} from "./payments";
 import { getTrackingUrl } from "./tracking";
 import { getShippingOptionLabel } from "./shipping";
 
@@ -12,8 +17,6 @@ const FROM = process.env.EMAIL_FROM || "Optimized Aminos <orders@optimizedaminos
 const AUTH_FROM =
   process.env.AUTH_EMAIL_FROM || "Optimized Aminos <noreply@optimizedaminos.co>";
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://optimizedaminos.co";
-const ZELLE = process.env.NEXT_PUBLIC_ZELLE_RECIPIENT || "payments@optimizedaminos.co";
-const VENMO = process.env.NEXT_PUBLIC_VENMO_HANDLE || "OptimizedAminos";
 
 type OrderWithItems = Order & { items: OrderItem[] };
 
@@ -108,18 +111,20 @@ function button(label: string, href: string): string {
 }
 
 function paymentOptions(order: OrderWithItems): string {
-  const venmoLink = buildVenmoLink(VENMO, order.totalCents, order.reference);
+  const zelle = getZelleRecipient();
+  const venmo = getVenmoHandle();
+  const venmoLink = buildVenmoLink(venmo, order.totalCents, order.reference);
 
   return `
     <p>Please send <strong style="color:#e8c879;">${formatPrice(order.totalCents)}</strong> using either payment method below:</p>
     <div style="margin:14px 0;border:1px solid rgba(232,200,121,0.25);border-radius:12px;overflow:hidden;">
       <div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.08);">
         <p style="margin:0 0 6px;color:#f4f6fb;font-weight:700;">Zelle</p>
-        <p style="margin:0;font-size:17px;color:#e8c879;font-weight:700;">${ZELLE}</p>
+        <p style="margin:0;font-size:17px;color:#e8c879;font-weight:700;">${zelle}</p>
       </div>
       <div style="padding:14px 16px;">
         <p style="margin:0 0 6px;color:#f4f6fb;font-weight:700;">Venmo</p>
-        <p style="margin:0 0 10px;font-size:17px;color:#e8c879;font-weight:700;">${formatVenmoHandle(VENMO)}</p>
+        <p style="margin:0 0 10px;font-size:17px;color:#e8c879;font-weight:700;">${formatVenmoHandle(venmo)}</p>
         <a href="${venmoLink}" style="display:inline-block;padding:10px 18px;background:#3D95CE;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:600;font-size:13px;">Pay ${formatPrice(order.totalCents)} with Venmo</a>
       </div>
     </div>
